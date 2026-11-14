@@ -79,7 +79,7 @@ Branch on `code`, which is stable. `message` is for people and may change.
 | 409 | `node_full` | The host has no room to start, fork or wake this sandbox now. |
 | 429 | `rate_limited` | Too many requests. See below. |
 | 500 | `internal` | An unexpected server error. |
-| 501 | `*_unavailable`, such as `snapshots_unavailable`, `security_groups_unavailable` | The feature is not switched on for this region's hosts yet. |
+| 501 | `*_unavailable`, such as `snapshots_unavailable`, `security_groups_unavailable` | No host in the region can do it yet: the feature is off there, or none of the hosts that can has room. |
 | 502 | `node_error` | The host failed the operation. |
 | 503 | `no_capacity` | No host in the region can take the request right now. Retry shortly. |
 

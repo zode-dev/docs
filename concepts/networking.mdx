@@ -1,6 +1,6 @@
 ---
 title: "Networking"
-description: "What a sandbox can reach, security groups, and private networking over Tailscale, Headscale or NetBird. Both are built but not switched on in eu-central yet."
+description: "What a sandbox can reach, security groups, and private networking over Tailscale, Headscale or NetBird."
 ---
 
 ## What a sandbox can reach today
@@ -13,9 +13,9 @@ To let a sandbox reach a host only your own machine can, run [`zode bridge`](/cl
 
 ## Security groups
 
-<Warning>
-Security groups are not switched on in `eu-central` yet. You can list them, but creating, changing or attaching one returns 501 `security_groups_unavailable`. `GET /v1/security-groups` answers `"enforced": false` until they are on, and the console shows them read-only.
-</Warning>
+<Note>
+A host rule (such as `api.stripe.com`) allows the addresses the sandbox's DNS resolver hands out for that name. Attach a group with a host rule when you create the sandbox. Added to a sandbox that already looked the name up, the rule takes effect for that host when the sandbox's cached answer expires, or at once after `resolvectl flush-caches` in the sandbox.
+</Note>
 
 A security group is a set of allow rules for what a sandbox may send (outbound) and receive (inbound). Anything no rule allows is dropped. Rules are stateful: replies to an allowed connection are allowed. They are enforced on the host, so a program in the sandbox cannot change them.
 
@@ -29,10 +29,6 @@ A security group is a set of allow rules for what a sandbox may send (outbound) 
 Manage them with [`zode sg`](/cli/workspace#zode-sg), the console (**Security groups**), or the API: `GET` and `POST /v1/security-groups`, `GET`, `PATCH` and `DELETE /v1/security-groups/{id}`, and `GET` and `PUT /v1/sandboxes/{id}/security-groups`. Owners and admins change them.
 
 ## Private networking
-
-<Warning>
-Private networking is not switched on in `eu-central` yet. `GET /v1/environments/{id}/network` answers `"available": false`, and connecting a mesh returns 501 `private_networking_unavailable`.
-</Warning>
 
 Private networking connects an environment to your own Tailscale tailnet, Headscale server or NetBird network. Sandboxes in that environment can then reach what your mesh reaches, such as a database behind a subnet router, and your machines can reach the sandboxes by a private IP, under your mesh's own access rules.
 

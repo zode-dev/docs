@@ -44,7 +44,7 @@ A `balance.low` event goes to your [alerts](/concepts/alerts) and [webhooks](/co
 
 ## Cap a sandbox
 
-`max_cost_micros` caps the AI spend of one sandbox. It counts only AI calls the sandbox makes through Zode's AI proxy on the workspace's keys, never compute or storage. Set it at create or fork; a fork without one keeps its parent's. The host keeps the running total in memory, so a host restart starts it again from zero.
+`max_cost_micros` caps the AI spend of one sandbox. It counts every AI call the sandbox makes through Zode's AI proxy, except calls on a Claude or ChatGPT subscription, and never compute or storage. Set it at create or fork; a fork without one keeps its parent's. The host keeps the running total in memory, so a host restart starts it again from zero.
 
 <CodeGroup>
 
@@ -83,12 +83,12 @@ curl -s -X PATCH https://api.zode.dev/v1/billing \
 - **`sandbox_default_cap_micros`** becomes the `max_cost_micros` of every new sandbox that names none.
 - **`daily_cap_micros`** applies per UTC day, in two places:
   - Once today's billed spend (compute and storage) reaches it, creating, forking and starting sandboxes answer 409 `daily_cap_reached`: "today's spend $X has reached the workspace's daily cap $Y; raise it in Billing or wait for 00:00 UTC". Running sandboxes are not stopped.
-  - Once today's AI spend through Zode keys reaches it, the host refuses AI calls with HTTP 402 `zode_spend_cap` until 00:00 UTC, and sends `spend.daily_cap_reached`.
+  - Once today's AI spend through the proxy (subscription calls excepted) reaches it, the host refuses AI calls with HTTP 402 `zode_spend_cap` until 00:00 UTC, and sends `spend.daily_cap_reached`.
 
 `GET /v1/billing` returns the caps with today's spend so far (`caps.today_micros`), this month's usage per meter, the invoice estimate and the credit balance. The same two caps appear in `/v1/proxying` as `caps.daily_cap_micros` and `caps.sandbox_max_cost_micros`; both routes edit the same values.
 
 <Note>
-AI spend for the caps is counted in the host's memory. A host restart starts the count again from zero.
+AI spend for the caps is counted in each host's memory. A host restart starts its count again from zero, and the daily cap is counted per host, so a workspace whose sandboxes run on several hosts can spend past it.
 </Note>
 
 ## Read usage
@@ -119,6 +119,4 @@ The API behind it:
 
 Totals, the daily series, the groups and the CSV rows always sum to the same amounts. Every role can read usage.
 
-<Note>
-AI figures come from the flight recorder, which the hosts do not write to yet, so AI spend currently reads $0.
-</Note>
+AI figures come from the flight recorder. The usage response's `recorder` field is `on` when they are known, and `off` or `error` when they are not.

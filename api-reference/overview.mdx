@@ -68,6 +68,7 @@ Branch on `code`, which is stable. `message` is for people and may change.
 | 402 | `credit_exhausted` | The workspace has no card on file and no credit left, so it cannot create, fork or start sandboxes. Add a card or buy credit in **Billing**. |
 | 403 | `forbidden` | Your role may not do this, or `X-Zode-Org` does not match the key. |
 | 403 | `token_scope` | The key's scope does not cover this call. |
+| 403 | `workspace_suspended` | The workspace is suspended. Contact support. |
 | 404 | `not_found` | No such resource in this workspace. |
 | 409 | `invalid_state` | The sandbox is in the wrong status, for example exec on a stopped sandbox. |
 | 409 | `concurrency_limit` | Your plan's running-sandbox limit is reached. Stop one first. |
@@ -78,6 +79,7 @@ Branch on `code`, which is stable. `message` is for people and may change.
 | 409 | `node_full` | The host has no room to start, fork or wake this sandbox now. |
 | 429 | `rate_limited` | Too many requests. See below. |
 | 500 | `internal` | An unexpected server error. |
+| 501 | `*_unavailable`, such as `snapshots_unavailable`, `security_groups_unavailable` | The feature is not switched on for this region's hosts yet. |
 | 502 | `node_error` | The host failed the operation. |
 | 503 | `no_capacity` | No host in the region can take the request right now. Retry shortly. |
 
@@ -103,6 +105,8 @@ Over a limit, the API answers `429 rate_limited` with these headers:
 | `X-RateLimit-Reset` | When the window resets, in Unix seconds. |
 
 The headers describe the window that refused the request, and only 429 answers carry them. A few other routes have their own limits and answer the same way, for example member invites (30 per workspace per hour) and alert channel tests (10 per channel per minute).
+
+Every API key and console session is also limited to 1,200 requests per minute. Over it, the API answers `429 rate_limited` with `Retry-After` only, without the `X-RateLimit-*` headers.
 
 The plan's running-sandbox limit is separate: it answers `409 concurrency_limit`, not 429. `GET /v1/concurrency` returns `running`, `limit` and `plan`.
 

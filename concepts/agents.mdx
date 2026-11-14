@@ -51,6 +51,8 @@ The sign-in runs the official CLI (`claude setup-token` or `codex login --device
 
 You can also run the command on your own machine and paste what it prints: **Paste a token** for Claude, **Paste auth.json** for Codex.
 
+From the terminal, `zode agent sub sign-in claude-code` (or `codex`) runs the same sign-in, and `zode agent sub set` sends a pasted token or `~/.codex/auth.json`. See [`zode agent`](/cli/workspace#zode-agent).
+
 ### Where your login lives
 
 - **Claude**: the token stays on the host. Your sessions get a placeholder, and the host swaps the real token in only on requests to `api.anthropic.com`. Each sandbox has its own placeholder, so one read from inside a VM is useless anywhere else.
@@ -123,21 +125,27 @@ A provider takes at most 10 workspace keys (409 `too_many_keys`). The order call
 | `loop.max_calls` per 15 min | 100 | 10 to 10,000 |
 | `loop.max_spend_micros` per 15 min | 5,000,000 ($5) | $0.50 to $1,000 |
 | `loop.max_same_failures` (same command, cwd and exit code) | 8 | 3 to 100 |
+| `loop.mode` | empty: the host's default, `alert` | `off`, `alert` or `pause` |
 | `caps.sandbox_max_cost_micros` (default per sandbox) | none | none, or $0.10 to $10,000 |
 | `caps.daily_cap_micros` (workspace, UTC day) | none | none, or $1 to $100,000 |
 | `caps.low_balance_micros` | 2,000,000 ($2) | $0 to $10,000 |
 
-The loop breaker reports today: when it trips it sends a `breaker.tripped` event to your [alerts](/concepts/alerts) and [webhooks](/concepts/webhooks-and-telemetry), and calls keep going. The alert says the breaker "flagged a possible loop", not that it paused the agent. It does not see code changes yet, so a long busy session can trip it.
+The breaker counts a change to the code in the sandbox as progress, so an agent that keeps editing files does not trip it. When it trips, it sends a `breaker.tripped` event to your [alerts](/concepts/alerts) and [webhooks](/concepts/webhooks-and-telemetry). What else happens depends on `loop.mode`:
 
-The two caps are the same values as the spend caps in Billing. When a sandbox's cap or the daily cap is spent, AI calls through Zode keys answer HTTP 402 with `{"type":"error","error":{"type":"zode_spend_cap",...}}`. See [Spend and caps](/concepts/spend-and-caps).
+| `loop.mode` | When the breaker trips |
+|---|---|
+| `off` | Nothing. The breaker does not run. |
+| `alert` (the default) | The event is sent and calls keep going. The alert says the breaker "flagged a possible loop". |
+| `pause` | The sandbox's AI calls, subscription calls included, get HTTP 429 with error type `zode_loop_breaker` until you resume it or restart the sandbox. The alert says the breaker "paused the agent". |
+
+`POST /v1/proxying/loop/resume` (owners and admins) resumes every paused agent in the workspace. Hosts pick it up within about a minute.
+
+The two caps are the same values as the spend caps in Billing. When a sandbox's cap or the daily cap is spent, the sandbox's AI calls through the proxy answer HTTP 402 with `{"type":"error","error":{"type":"zode_spend_cap",...}}`. See [Spend and caps](/concepts/spend-and-caps).
 
 ## AI spend: shown, not billed
 
 You pay your provider directly. Zode adds no markup and does not bill AI calls. The proxy prices each call at the provider's list price and reports it per repo, branch, PR, member, sandbox and model in `zode cost --by model` and `GET /v1/usage`.
 
-<Note>
-AI spend reporting reads the flight recorder, which the hosts do not write to yet. Until they do, usage shows AI spend as $0 in 0 calls. Caps are counted on the host and apply regardless.
-</Note>
 
 ## Drive Zode from your coding agent
 
@@ -148,4 +156,4 @@ claude mcp add zode -- zode mcp
 codex mcp add zode -- zode mcp
 ```
 
-The agent gets `sandbox_list`, `sandbox_create`, `sandbox_exec`, `sandbox_read_file`, `sandbox_write_file`, `sandbox_fork`, `sandbox_stop`, `sandbox_start` and `sandbox_delete`. See [MCP](/cli/mcp).
+The agent gets tools to make, run commands in, fork, snapshot, stop, start and delete sandboxes, share a port, and read a sandbox's logs and stats. See [MCP](/cli/mcp) for the full list.

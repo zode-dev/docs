@@ -9,11 +9,13 @@ security:
 - bearerAuth: []
 tags:
 - name: Sandboxes
+- name: Port previews
 - name: Commands
 - name: Browser and desktop
 - name: Snapshots
 - name: Images
 - name: Environments
+- name: Networking
 - name: Flight recorder
 - name: Attestation
 - name: Agents
@@ -1531,6 +1533,144 @@ paths:
       schema:
         type: string
         pattern: ^snp_[a-z2-7]{16}$
+  /v1/sandboxes/{id}/ports:
+    get:
+      operationId: listPorts
+      tags:
+      - Port previews
+      summary: List open ports
+      description: 'The sandbox''s open port previews (owner, admin, member).
+
+
+        Each open port and its https URL. 501
+
+        `ports_unavailable` when this API serves no previews.'
+      responses:
+        '200':
+          description: Open ports
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - ports
+                properties:
+                  ports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PortPreview'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '501':
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: openPort
+      tags:
+      - Port previews
+      summary: Open a port
+      description: 'Serve a port of the sandbox at an https URL (owner, admin, member).
+
+
+        `access` is `private` (signed-in members of the workspace, the
+
+        default), `public` (anyone with the URL) or `password` (basic auth;
+
+        the password is in this answer only). Opening an open port again
+
+        replaces it with a new URL. At most 10 per sandbox (409
+
+        `limit_reached`). 501 `ports_unavailable` when the API or the
+
+        sandbox''s host cannot serve previews. Audited `port.open`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - port
+              properties:
+                port:
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+                access:
+                  type: string
+                  enum:
+                  - private
+                  - public
+                  - password
+      responses:
+        '201':
+          description: Open
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortPreview'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '501':
+          $ref: '#/components/responses/Error'
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  /v1/sandboxes/{id}/ports/{port}:
+    delete:
+      operationId: closePort
+      tags:
+      - Port previews
+      summary: Close a port
+      description: 'Close a port preview; its URL stops working (owner, admin, member).
+
+
+        404 `not_found` when the port is not open. Audited `port.close`.'
+      responses:
+        '200':
+          description: Closed
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - closed
+                properties:
+                  closed:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '501':
+          $ref: '#/components/responses/Error'
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: port
+      in: path
+      required: true
+      schema:
+        type: integer
   /v1/audit:
     get:
       operationId: listAudit
@@ -2996,9 +3136,17 @@ paths:
 
         live from GitHub (cached a minute); a failed read sets
 
-        `repos_error`. `spent_micros` is this UTC month''s runner compute,
+        `repos_error`. `spent_micros` is this UTC month''s CI cost: every
 
-        including what live runners have run up so far.'
+        machine''s cost line (runners, shard workers, background runs),
+
+        what live machines have run up so far, and CI storage (warm
+
+        snapshots, Actions cache). It is what the monthly cap counts.
+
+        `limit` is the plan''s CI limit on machines running at once
+
+        (provisional values); `storage` what the workspace keeps for CI now.'
       responses:
         '200':
           description: CI state
@@ -3014,6 +3162,9 @@ paths:
                 - monthly_cap_micros
                 - spent_micros
                 - month_start
+                - standby
+                - limit
+                - storage
                 properties:
                   configured:
                     type: boolean
@@ -3115,6 +3266,79 @@ paths:
                   month_start:
                     type: string
                     format: date-time
+                  standby:
+                    type: object
+                    description: The workspace's standby runners.
+                    required:
+                    - true
+                    - ready
+                    - starting
+                    - repos
+                    - pool
+                    - unbilled_ms
+                    properties:
+                      true:
+                        type: boolean
+                        description: the workspace's active repositories keep standby runners
+                      ready:
+                        type: integer
+                        description: standbys listening for a job now
+                      starting:
+                        type: integer
+                      repos:
+                        type: array
+                        items:
+                          type: string
+                        description: repositories with a standby now
+                      pool:
+                        type: integer
+                        description: workspace pool VMs ready or starting (no repository yet); not in
+                          ready or starting
+                      unbilled_ms:
+                        type: integer
+                        description: time standbys waited for a job this month; not billed
+                  shard_limit:
+                    type:
+                    - integer
+                    - 'null'
+                    description: the workspace's own limit on test shard workers per job; null keeps the
+                      server's
+                  shard_limit_max:
+                    type: integer
+                    description: the server's limit, which the workspace's can only lower
+                  limit:
+                    type: object
+                    description: The plan's CI limit.
+                    required:
+                    - plan
+                    - max_machines
+                    - running
+                    - waiting
+                    - provisional
+                    - note
+                    properties:
+                      plan:
+                        type: string
+                        examples:
+                        - team
+                      max_machines:
+                        type:
+                        - integer
+                        - 'null'
+                        description: runners and shard workers running at once; null is no limit
+                      running:
+                        type: integer
+                        description: CI machines running now (standbys waiting in the pool do not count)
+                      waiting:
+                        type: integer
+                        description: jobs queued for the limit
+                      provisional:
+                        type: boolean
+                        description: the values are provisional until the CI pilot sets them
+                      note:
+                        type: string
+                  storage:
+                    $ref: '#/components/schemas/CIStorageNow'
         '400':
           $ref: '#/components/responses/Error'
         '401':
@@ -3136,9 +3360,17 @@ paths:
 
         cap reached, unknown size, app suspended) or failed (`reason`: Zode
 
-        could not start the runner). `cost_micros` is the runner sandbox''s
+        could not start the runner, or `waiting for capacity: ...` while the
 
-        metered compute; `cost_final` false means it is still running up.'
+        region is full or the plan''s CI limit is reached). `cost_micros` is
+
+        the sum of the job''s billable cost lines (`cost_lines`: runner, shard
+
+        workers, background run, each metered on its own; standby time and
+
+        machines Zode does not charge for are unbilled lines);
+
+        `cost_final` false means a machine is still running up.'
       parameters:
       - name: limit
         in: query
@@ -3160,98 +3392,7 @@ paths:
                   jobs:
                     type: array
                     items:
-                      type: object
-                      required:
-                      - id
-                      - repo
-                      - branch
-                      - workflow
-                      - job
-                      - url
-                      - labels
-                      - size
-                      - status
-                      - conclusion
-                      - reason
-                      - sandbox_id
-                      - cache_hit
-                      - cost_micros
-                      - cost_final
-                      - queued_at
-                      - started_at
-                      - completed_at
-                      - duration_ms
-                      properties:
-                        id:
-                          type: string
-                          pattern: ^cij_[a-z2-7]{16}$
-                        repo:
-                          type: string
-                        branch:
-                          type: string
-                        workflow:
-                          type: string
-                        job:
-                          type: string
-                        url:
-                          type: string
-                          format: uri
-                          description: the job on GitHub
-                        labels:
-                          type: array
-                          items:
-                            type: string
-                        size:
-                          type:
-                          - string
-                          - 'null'
-                          examples:
-                          - 4x8
-                        status:
-                          type: string
-                          enum:
-                          - queued
-                          - provisioning
-                          - waiting
-                          - running
-                          - completed
-                          - refused
-                          - failed
-                        conclusion:
-                          type:
-                          - string
-                          - 'null'
-                        reason:
-                          type:
-                          - string
-                          - 'null'
-                        sandbox_id:
-                          type:
-                          - string
-                          - 'null'
-                        cache_hit:
-                          type: boolean
-                        cost_micros:
-                          type: integer
-                        cost_final:
-                          type: boolean
-                        queued_at:
-                          type: string
-                          format: date-time
-                        started_at:
-                          type:
-                          - string
-                          - 'null'
-                          format: date-time
-                        completed_at:
-                          type:
-                          - string
-                          - 'null'
-                          format: date-time
-                        duration_ms:
-                          type:
-                          - integer
-                          - 'null'
+                      $ref: '#/components/schemas/CIJob'
         '400':
           $ref: '#/components/responses/Error'
         '401':
@@ -3752,6 +3893,420 @@ paths:
         '503':
           $ref: '#/components/responses/Error'
       description: Send one log record to the saved endpoint and report the answer.
+  /v1/environments/{id}/network:
+    get:
+      operationId: getEnvironmentNetwork
+      tags:
+      - Networking
+      summary: Get private networking
+      description: 'The environment''s private network and its mesh routers.
+
+
+        `cidr` is the environment''s private /16 (default 10.77.0.0/16); each
+
+        node hosting its sandboxes holds a /24 of it and each sandbox a
+
+        stable private IP. With a mesh connected, `nodes` lists each node''s
+
+        router as it reports itself and `setup` is what to paste on the
+
+        mesh''s side. Credentials are never returned.'
+      responses:
+        '200':
+          description: The network
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentNetwork'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      operationId: setEnvironmentNetwork
+      tags:
+      - Networking
+      summary: Set the private range
+      description: 'Set the private CIDR and the names resolved through the mesh (owner, admin).
+
+
+        The CIDR is a private IPv4 /16 clear of Zode''s ranges and
+
+        100.64.0.0/10; it can change only while no node holds a slice and
+
+        no mesh is connected (409 `network_in_use`). Audited
+
+        `environment.network.set`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                cidr:
+                  type: string
+                  example: 10.77.0.0/16
+                domains:
+                  type: array
+                  maxItems: 20
+                  items:
+                    type: string
+                    example: internal.example.com
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cidr:
+                    type: string
+                  domains:
+                    type: array
+                    items:
+                      type: string
+        default:
+          $ref: '#/components/responses/Error'
+    parameters:
+    - $ref: '#/components/parameters/EnvironmentID'
+  /v1/environments/{id}/mesh:
+    put:
+      operationId: connectEnvironmentMesh
+      tags:
+      - Networking
+      summary: Connect a mesh
+      description: 'Connect the environment to Tailscale, Headscale or NetBird (owner, admin).
+
+
+        Tailscale: an OAuth client with the auth_keys scope that may assign
+
+        tag:zode (recommended: Zode mints a single-use key for each node''s
+
+        router) or a reusable tagged `auth_key`. Headscale: `control_url`
+
+        and a reusable tagged `auth_key`. NetBird: a reusable `setup_key`,
+
+        `control_url` for a self-hosted server, and an optional `api_token`
+
+        so Zode adds each node''s network route itself. Credentials are
+
+        checked where the vendor allows (400 `mesh_credential_refused`),
+
+        sealed with the server key and never returned. Routers come up on
+
+        every node that hosts the environment within a minute. Audited
+
+        `environment.mesh.connect` without any credential.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - provider
+              properties:
+                provider:
+                  type: string
+                  enum:
+                  - tailscale
+                  - headscale
+                  - netbird
+                control_url:
+                  type: string
+                  example: https://headscale.example.com
+                auth_key:
+                  type: string
+                  writeOnly: true
+                oauth_client_id:
+                  type: string
+                oauth_client_secret:
+                  type: string
+                  writeOnly: true
+                setup_key:
+                  type: string
+                  writeOnly: true
+                api_token:
+                  type: string
+                  writeOnly: true
+      responses:
+        '200':
+          description: Connected; routers are coming up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connected:
+                    type: boolean
+                  provider:
+                    type: string
+                  cidr:
+                    type: string
+                  setup:
+                    $ref: '#/components/schemas/MeshSetup'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: disconnectEnvironmentMesh
+      tags:
+      - Networking
+      summary: Disconnect the mesh
+      description: 'Disconnect the mesh (owner, admin).
+
+
+        Every router logs out (its device or peer leaves the mesh) and Zode''s
+
+        NetBird routes are removed; sandboxes keep the internet. Nodes that
+
+        did not answer are listed in `node_errors`. Audited
+
+        `environment.mesh.disconnect`.'
+      responses:
+        '200':
+          description: Disconnected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connected:
+                    type: boolean
+                  node_errors:
+                    type: array
+                    items:
+                      type: string
+        default:
+          $ref: '#/components/responses/Error'
+    parameters:
+    - $ref: '#/components/parameters/EnvironmentID'
+  /v1/security-groups:
+    get:
+      operationId: listSecurityGroups
+      tags:
+      - Networking
+      summary: List security groups
+      description: 'List security groups (every environment, or ?environment_id=).
+
+
+        Stateful, allow-only rules enforced on the host for each sandbox. Every environment shows its
+        default
+
+        group; `enforced` is false while this region''s nodes cannot enforce
+
+        groups yet.'
+      parameters:
+      - name: environment_id
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The groups
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - security_groups
+                - enforced
+                properties:
+                  security_groups:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SecurityGroup'
+                  enforced:
+                    type: boolean
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createSecurityGroup
+      tags:
+      - Networking
+      summary: Create a security group
+      description: 'Create a security group (owner, admin).
+
+
+        At most 60 rules. A rule naming the metadata service, Zode''s own
+
+        networks or mail ports is 400 `invalid_rule`, in words. Audited
+
+        `security_group.create`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecurityGroupRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroup'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/security-groups/{id}:
+    get:
+      operationId: getSecurityGroup
+      tags:
+      - Networking
+      summary: Get a security group
+      responses:
+        '200':
+          description: The group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroup'
+        default:
+          $ref: '#/components/responses/Error'
+      description: One security group.
+    patch:
+      operationId: updateSecurityGroup
+      tags:
+      - Networking
+      summary: Change a security group
+      description: 'Change a group''s name, description or rules (owner, admin).
+
+
+        Running sandboxes get the change within seconds; a connection the
+
+        new rules no longer allow is reset on its next packet. Audited
+
+        `security_group.update`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecurityGroupRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroup'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: deleteSecurityGroup
+      tags:
+      - Networking
+      summary: Delete a security group
+      description: 'Delete a group no sandbox uses (owner, admin).
+
+
+        409 `in_use` names the sandboxes; 409 `default_group` for the default. Audited `security_group.delete`.'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+        default:
+          $ref: '#/components/responses/Error'
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^sg_[a-z2-7]{16}$
+  /v1/sandboxes/{id}/security-groups:
+    get:
+      operationId: getSandboxSecurityGroups
+      tags:
+      - Networking
+      summary: Get a sandbox's groups
+      description: 'The groups a sandbox runs with.
+
+
+        Its own groups, or its environment''s default group (`default` true). `enforced` is false on a
+        node that cannot enforce them.'
+      responses:
+        '200':
+          description: The groups
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - security_groups
+                - default
+                - enforced
+                properties:
+                  security_groups:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SecurityGroup'
+                  default:
+                    type: boolean
+                  enforced:
+                    type: boolean
+                  private_ip:
+                    type: string
+                    description: The sandbox's address on its environment's private network; empty without
+                      one.
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      operationId: setSandboxSecurityGroups
+      tags:
+      - Networking
+      summary: Set a sandbox's groups
+      description: 'Replace a sandbox''s groups, live.
+
+
+        Up to five groups of the sandbox''s environment; empty goes back to
+
+        the default group. Applied to a running sandbox before the reply; 502
+
+        `node_unreachable` when the node did not take them (they are saved and
+
+        applied on the next start). Audited `sandbox.security_groups.set`.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - security_groups
+              properties:
+                security_groups:
+                  type: array
+                  maxItems: 5
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  security_groups:
+                    type: array
+                    items:
+                      type: string
+                  generation:
+                    type: integer
+        default:
+          $ref: '#/components/responses/Error'
+    parameters:
+    - $ref: '#/components/parameters/SandboxID'
   /v1/environments:
     get:
       operationId: listEnvironments
@@ -4258,9 +4813,13 @@ paths:
                     - 'null'
                   secrets_available:
                     type: boolean
+                  sign_in:
+                    type: boolean
+                    description: One-click sign-in works for the caller now, in `sign_in_sandbox` or in
+                      a throwaway sandbox the API starts for it.
                   sign_in_sandbox:
                     description: Where one-click subscription sign-in runs (the caller's newest running
-                      sandbox); null means paste only.
+                      sandbox); null means a throwaway sandbox runs it when `sign_in` is true.
                     oneOf:
                     - type: 'null'
                     - type: object
@@ -4482,9 +5041,13 @@ paths:
                     - 'null'
                   secrets_available:
                     type: boolean
+                  sign_in:
+                    type: boolean
+                    description: One-click sign-in works for the caller now, in `sign_in_sandbox` or in
+                      a throwaway sandbox the API starts for it.
                   sign_in_sandbox:
                     description: Where one-click subscription sign-in runs (the caller's newest running
-                      sandbox); null means paste only.
+                      sandbox); null means a throwaway sandbox runs it when `sign_in` is true.
                     oneOf:
                     - type: 'null'
                     - type: object
@@ -4757,9 +5320,13 @@ paths:
                     - 'null'
                   secrets_available:
                     type: boolean
+                  sign_in:
+                    type: boolean
+                    description: One-click sign-in works for the caller now, in `sign_in_sandbox` or in
+                      a throwaway sandbox the API starts for it.
                   sign_in_sandbox:
                     description: Where one-click subscription sign-in runs (the caller's newest running
-                      sandbox); null means paste only.
+                      sandbox); null means a throwaway sandbox runs it when `sign_in` is true.
                     oneOf:
                     - type: 'null'
                     - type: object
@@ -4872,6 +5439,28 @@ paths:
                         type: integer
                       max_same_failures:
                         type: integer
+                      mode:
+                        type: string
+                        enum:
+                        - ''
+                        - 'off'
+                        - alert
+                        - pause
+                        description: 'What a trip does: "" is the node default (alert),
+
+                          "alert" reports and keeps running, "pause" also
+
+                          refuses the sandbox''s AI calls (429
+
+                          zode_loop_breaker) until resumed.
+
+                          '
+                      resumed_at:
+                        type:
+                        - string
+                        - 'null'
+                        format: date-time
+                        description: Last POST /v1/proxying/loop/resume
                   caps:
                     type: object
                     required:
@@ -4909,6 +5498,28 @@ paths:
                             type: integer
                           max_same_failures:
                             type: integer
+                          mode:
+                            type: string
+                            enum:
+                            - ''
+                            - 'off'
+                            - alert
+                            - pause
+                            description: 'What a trip does: "" is the node default (alert),
+
+                              "alert" reports and keeps running, "pause" also
+
+                              refuses the sandbox''s AI calls (429
+
+                              zode_loop_breaker) until resumed.
+
+                              '
+                          resumed_at:
+                            type:
+                            - string
+                            - 'null'
+                            format: date-time
+                            description: Last POST /v1/proxying/loop/resume
                       caps:
                         type: object
                         required:
@@ -5190,6 +5801,13 @@ paths:
                       type: integer
                       minimum: 3
                       maximum: 100
+                    mode:
+                      type: string
+                      enum:
+                      - ''
+                      - 'off'
+                      - alert
+                      - pause
                 caps:
                   type: object
                   additionalProperties: false
@@ -5287,6 +5905,28 @@ paths:
                         type: integer
                       max_same_failures:
                         type: integer
+                      mode:
+                        type: string
+                        enum:
+                        - ''
+                        - 'off'
+                        - alert
+                        - pause
+                        description: 'What a trip does: "" is the node default (alert),
+
+                          "alert" reports and keeps running, "pause" also
+
+                          refuses the sandbox''s AI calls (429
+
+                          zode_loop_breaker) until resumed.
+
+                          '
+                      resumed_at:
+                        type:
+                        - string
+                        - 'null'
+                        format: date-time
+                        description: Last POST /v1/proxying/loop/resume
                   caps:
                     type: object
                     required:
@@ -5324,6 +5964,28 @@ paths:
                             type: integer
                           max_same_failures:
                             type: integer
+                          mode:
+                            type: string
+                            enum:
+                            - ''
+                            - 'off'
+                            - alert
+                            - pause
+                            description: 'What a trip does: "" is the node default (alert),
+
+                              "alert" reports and keeps running, "pause" also
+
+                              refuses the sandbox''s AI calls (429
+
+                              zode_loop_breaker) until resumed.
+
+                              '
+                          resumed_at:
+                            type:
+                            - string
+                            - 'null'
+                            format: date-time
+                            description: Last POST /v1/proxying/loop/resume
                       caps:
                         type: object
                         required:
@@ -5360,6 +6022,218 @@ paths:
                     type: integer
         '400':
           $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+  /v1/proxying/loop/resume:
+    post:
+      operationId: resumeLoopBreaker
+      tags:
+      - Proxying
+      summary: Resume paused agents
+      description: 'Resume every agent the loop breaker paused (owner, admin).
+
+
+        Stamps `loop.resumed_at` with now. Nodes get it with the loop
+
+        settings and resume every sandbox of the workspace that tripped
+
+        before it, on their next config pull (within a minute); the counters
+
+        start again from zero. Audited as `proxy.loop.resume`.'
+      responses:
+        '200':
+          description: Updated proxying view
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - providers
+                - keys
+                - loop
+                - caps
+                - defaults
+                - limits
+                - saved
+                - can_edit
+                - secrets_available
+                - max_keys_per_provider
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                  keys:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: object
+                        required:
+                        - id
+                        - provider
+                        - position
+                        - label
+                        - hint
+                        - created_by
+                        - created_at
+                        properties:
+                          id:
+                            type: string
+                            pattern: ^aik_[a-z2-7]{16}$
+                          provider:
+                            type: string
+                          position:
+                            type: integer
+                            description: 0 is tried first
+                          label:
+                            type: string
+                          hint:
+                            type: string
+                            description: Last 4 characters
+                          created_by:
+                            type: string
+                          created_at:
+                            type: string
+                            format: date-time
+                  loop:
+                    type: object
+                    required:
+                    - window_seconds
+                    - max_calls
+                    - max_spend_micros
+                    - max_same_failures
+                    properties:
+                      window_seconds:
+                        type: integer
+                      max_calls:
+                        type: integer
+                      max_spend_micros:
+                        type: integer
+                      max_same_failures:
+                        type: integer
+                      mode:
+                        type: string
+                        enum:
+                        - ''
+                        - 'off'
+                        - alert
+                        - pause
+                        description: 'What a trip does: "" is the node default (alert),
+
+                          "alert" reports and keeps running, "pause" also
+
+                          refuses the sandbox''s AI calls (429
+
+                          zode_loop_breaker) until resumed.
+
+                          '
+                      resumed_at:
+                        type:
+                        - string
+                        - 'null'
+                        format: date-time
+                        description: Last POST /v1/proxying/loop/resume
+                  caps:
+                    type: object
+                    required:
+                    - sandbox_max_cost_micros
+                    - daily_cap_micros
+                    - low_balance_micros
+                    properties:
+                      sandbox_max_cost_micros:
+                        type:
+                        - integer
+                        - 'null'
+                      daily_cap_micros:
+                        type:
+                        - integer
+                        - 'null'
+                      low_balance_micros:
+                        type: integer
+                        description: balance.low fires once when free credit drops below this
+                  defaults:
+                    type: object
+                    properties:
+                      loop:
+                        type: object
+                        required:
+                        - window_seconds
+                        - max_calls
+                        - max_spend_micros
+                        - max_same_failures
+                        properties:
+                          window_seconds:
+                            type: integer
+                          max_calls:
+                            type: integer
+                          max_spend_micros:
+                            type: integer
+                          max_same_failures:
+                            type: integer
+                          mode:
+                            type: string
+                            enum:
+                            - ''
+                            - 'off'
+                            - alert
+                            - pause
+                            description: 'What a trip does: "" is the node default (alert),
+
+                              "alert" reports and keeps running, "pause" also
+
+                              refuses the sandbox''s AI calls (429
+
+                              zode_loop_breaker) until resumed.
+
+                              '
+                          resumed_at:
+                            type:
+                            - string
+                            - 'null'
+                            format: date-time
+                            description: Last POST /v1/proxying/loop/resume
+                      caps:
+                        type: object
+                        required:
+                        - sandbox_max_cost_micros
+                        - daily_cap_micros
+                        - low_balance_micros
+                        properties:
+                          sandbox_max_cost_micros:
+                            type:
+                            - integer
+                            - 'null'
+                          daily_cap_micros:
+                            type:
+                            - integer
+                            - 'null'
+                          low_balance_micros:
+                            type: integer
+                            description: balance.low fires once when free credit drops below this
+                  limits:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: integer
+                      minItems: 2
+                      maxItems: 2
+                  saved:
+                    type: boolean
+                  can_edit:
+                    type: boolean
+                  secrets_available:
+                    type: boolean
+                  max_keys_per_provider:
+                    type: integer
         '401':
           $ref: '#/components/responses/Error'
         '403':
@@ -5553,6 +6427,515 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
   schemas:
+    CIJob:
+      type: object
+      description: One GitHub Actions job that asked for a Zode runner.
+      required:
+      - id
+      - github_job_id
+      - run_id
+      - repo
+      - branch
+      - workflow
+      - job
+      - url
+      - labels
+      - size
+      - status
+      - conclusion
+      - reason
+      - sandbox_id
+      - cache_hit
+      - cost_micros
+      - cost_final
+      - queued_at
+      - started_at
+      - completed_at
+      - duration_ms
+      - phases
+      - phase_ms
+      properties:
+        id:
+          type: string
+          pattern: ^cij_[a-z2-7]{16}$
+        github_job_id:
+          type: integer
+          description: GitHub's job id
+        run_id:
+          type: integer
+          description: GitHub's workflow run id
+        repo:
+          type: string
+        branch:
+          type: string
+        workflow:
+          type: string
+        job:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: the job on GitHub
+        labels:
+          type: array
+          items:
+            type: string
+        size:
+          type:
+          - string
+          - 'null'
+          examples:
+          - 4x8
+        status:
+          type: string
+          enum:
+          - queued
+          - provisioning
+          - waiting
+          - running
+          - completed
+          - refused
+          - failed
+        conclusion:
+          type:
+          - string
+          - 'null'
+        reason:
+          type:
+          - string
+          - 'null'
+        sandbox_id:
+          type:
+          - string
+          - 'null'
+        cache_hit:
+          type: boolean
+        cost_micros:
+          type: integer
+        cost_final:
+          type: boolean
+        queued_at:
+          type: string
+          format: date-time
+        started_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        duration_ms:
+          type:
+          - integer
+          - 'null'
+        phases:
+          $ref: '#/components/schemas/CIJobPhases'
+        phase_ms:
+          $ref: '#/components/schemas/CIJobPhaseMS'
+        runner_source:
+          type:
+          - string
+          - 'null'
+          enum:
+          - new
+          - sibling
+          - standby
+          - pool
+          - null
+          description: 'Where the runner the job holds (the one it ran on) came from: `new` (Zode started
+            it for
+
+            this job), `sibling` (started for another job of the repository; GitHub ran this one on
+
+            it), `standby` (from the repository''s standby pool, ready before the job was queued; its
+
+            runner phases are null and it is billed from GitHub''s start of the job). Null when the
+
+            job holds no runner.
+
+            '
+        cache:
+          $ref: '#/components/schemas/CIJobCache'
+        actions_cache:
+          type:
+          - object
+          - 'null'
+          description: 'What the job asked of the node''s Actions cache: read
+
+            from the node just before the runner is deleted, and live on GET
+
+            /v1/ci/jobs/{id} while it runs. null when the node could not say.
+
+            '
+          required:
+          - restores
+          - hits
+          - restored_bytes
+          - saves
+          - saved_bytes
+          - denied
+          properties:
+            restores:
+              type: integer
+              description: cache lookups
+            hits:
+              type: integer
+              description: lookups that found an entry
+            restored_bytes:
+              type: integer
+              description: sizes of the entries found
+            saves:
+              type: integer
+              description: entries saved
+            saved_bytes:
+              type: integer
+            denied:
+              type: integer
+              description: 'saves refused: a fork, no branch, or the job not yet confirmed'
+        console_url:
+          type: string
+          format: uri
+          description: the job's page in the console, with ?org=
+        cost_lines:
+          type: array
+          description: Each machine the job used, with its cost. Billable lines add up to `cost_micros`.
+          items:
+            $ref: '#/components/schemas/CICostLine'
+        cost_split:
+          $ref: '#/components/schemas/CICostSplit'
+    CICostLine:
+      type: object
+      required:
+      - kind
+      - sandbox_id
+      - vcpus
+      - ram_mb
+      - started_at
+      - ended_at
+      - ms
+      - micros
+      - billable
+      - final
+      - note
+      properties:
+        kind:
+          type: string
+          enum:
+          - runner
+          - worker
+          - background
+          - standby
+        sandbox_id:
+          type: string
+        vcpus:
+          type: integer
+        ram_mb:
+          type: integer
+        started_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        ended_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: null while the machine runs
+        ms:
+          type: integer
+        micros:
+          type: integer
+          description: compute at the price book in force; 0 when not billable
+        billable:
+          type: boolean
+        final:
+          type: boolean
+          description: false while the machine runs (the amount is so far)
+        note:
+          type:
+          - string
+          - 'null'
+          description: why a line is not billed
+    CICostSplit:
+      type: object
+      required:
+      - runner_micros
+      - worker_micros
+      - workers
+      - background_micros
+      - standby_unbilled_ms
+      - unbilled_machines
+      properties:
+        runner_micros:
+          type: integer
+        worker_micros:
+          type: integer
+        workers:
+          type: integer
+        background_micros:
+          type: integer
+        standby_unbilled_ms:
+          type: integer
+        unbilled_machines:
+          type: integer
+    CIStorageNow:
+      type: object
+      description: What the workspace keeps for CI now, after compression, ZFS clone blocks counted once.
+      required:
+      - snapshot_bytes
+      - cache_bytes
+      - as_of
+      properties:
+        snapshot_bytes:
+          type: integer
+        cache_bytes:
+          type: integer
+        as_of:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: the last sample of the nodes
+    CIJobCache:
+      type: object
+      description: 'How the job''s runner started (warm from a snapshot, or clean and
+
+        why) and what was kept after the job. `age_ms` and `size_bytes` are set when
+
+        `hit` is true.
+
+        '
+      required:
+      - hit
+      - snapshot_id
+      - age_ms
+      - size_bytes
+      - reason
+      - warm_disk
+      - weekly_clean
+      - attach_ms
+      - trust
+      - save
+      properties:
+        hit:
+          type: boolean
+        snapshot_id:
+          type:
+          - string
+          - 'null'
+        age_ms:
+          type:
+          - integer
+          - 'null'
+          description: the snapshot's age when the runner started
+        size_bytes:
+          type:
+          - integer
+          - 'null'
+        reason:
+          type:
+          - string
+          - 'null'
+          description: why the runner started warm or clean
+          in words: null
+        warm_disk:
+          type: boolean
+          description: the runner had a warm disk
+          so its job could be kept: null
+        weekly_clean:
+          type: boolean
+          description: the weekly clean run that rebuilds the job's warm state
+        attach_ms:
+          type:
+          - integer
+          - 'null'
+        trust:
+          type:
+          - string
+          - 'null'
+          enum:
+          - default
+          - branch
+          - pr
+          - fork
+          - unknown
+          - null
+        save:
+          type:
+          - object
+          - 'null'
+          required:
+          - status
+          - reason
+          - snapshot_id
+          - ms
+          - size_bytes
+          properties:
+            status:
+              type: string
+              enum:
+              - saved
+              - skipped
+              - failed
+            reason:
+              type:
+              - string
+              - 'null'
+            snapshot_id:
+              type:
+              - string
+              - 'null'
+            ms:
+              type:
+              - integer
+              - 'null'
+              description: scrub
+              freeze and snapshot: null
+            size_bytes:
+              type:
+              - integer
+              - 'null'
+    CIJobPhases:
+      type: object
+      description: 'When each phase began, one chain from GitHub creating
+
+        the job to GitHub finishing it. Null: not reached yet or not
+
+        recorded. runner_requested_at, sandbox_ready_at and
+
+        runner_connected_at describe the runner Zode started for this row
+
+        (the last try when it took several).
+
+        '
+      required:
+      - queued_at
+      - received_at
+      - runner_requested_at
+      - sandbox_ready_at
+      - runner_connected_at
+      - picked_up_at
+      - first_step_at
+      - completed_at
+      properties:
+        queued_at:
+          type: string
+          format: date-time
+          description: GitHub created the job
+        received_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Zode got the queued webhook
+        runner_requested_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Zode asked GitHub for the JIT runner
+        sandbox_ready_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: the runner's sandbox was created
+        runner_connected_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: the runner was listening for jobs
+        picked_up_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: GitHub started the job (its started_at)
+        first_step_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: the first step started
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: GitHub finished the job
+    CIJobPhaseMS:
+      type: object
+      description: 'Milliseconds between consecutive phases, null when either end is.
+
+        With every phase set, webhook through steps add up to total
+
+        (completed_at minus queued_at). Small negatives mean GitHub''s and
+
+        Zode''s clocks disagree.
+
+        '
+      required:
+      - webhook
+      - dispatch
+      - sandbox
+      - runner_boot
+      - assign
+      - setup
+      - steps
+      - queue
+      - total
+      properties:
+        webhook:
+          type:
+          - integer
+          - 'null'
+          description: queued_at to received_at
+        dispatch:
+          type:
+          - integer
+          - 'null'
+          description: received_at to runner_requested_at (waiting for room and retries land here)
+        sandbox:
+          type:
+          - integer
+          - 'null'
+          description: runner_requested_at to sandbox_ready_at
+        runner_boot:
+          type:
+          - integer
+          - 'null'
+          description: sandbox_ready_at to runner_connected_at
+        assign:
+          type:
+          - integer
+          - 'null'
+          description: runner_connected_at to picked_up_at
+        setup:
+          type:
+          - integer
+          - 'null'
+          description: picked_up_at to first_step_at
+        steps:
+          type:
+          - integer
+          - 'null'
+          description: first_step_at to completed_at
+        queue:
+          type:
+          - integer
+          - 'null'
+          description: queued_at to picked_up_at
+          GitHub's queue time: null
+        total:
+          type:
+          - integer
+          - 'null'
+          description: queued_at to completed_at
     HostAttestation:
       type: object
       description: One host's attestation.
@@ -6135,35 +7518,54 @@ components:
               description: "Stable machine code; branch on it rather than on `message`.\nDeliberately\
                 \ not a closed enum: new codes are added over time,\nso treat an unknown code by its HTTP\
                 \ status. The codes in use,\nby status (a few appear under two):\n\n- 400: `bad_request`\
-                \ (malformed JSON or unknown field),\n  `invalid_request`, `bad_signature`, `confirm_required`,\n\
-                \  `default_environment`, `email_not_allowed`,\n  `endpoint_required`, `invalid_code`,\
-                \ `invalid_email`,\n  `invalid_image`, `invalid_name`, `invalid_nonce`,\n  `invalid_state`,\
-                \ `invalid_token`, `not_admin`,\n  `order_mismatch`, `org_required`, `owner_cannot_leave`,\n\
-                \  `password_too_long`, `password_too_short`,\n  `personal_workspace`, `same_email`, `secret_unsupported`,\n\
-                \  `self`, `too_many`, `unknown_channel`,\n  `unknown_environment`, `unknown_installation`,\n\
-                \  `url_not_allowed`, `use_transfer`\n- 401: `unauthorized`, `invalid_credentials`, `bad_signature`\n\
-                - 402: `plan_required` (the plan does not include it),\n  `credit_exhausted` (no credit\
-                \ left and no card on file)\n- 403: `forbidden` (the role may not), `token_scope`, `csrf`,\n\
-                \  `cors`, `email_unverified`, `installation_not_yours`,\n  `no_user`, `not_yours`, `subscriptions_off`,\n\
-                \  `wrong_account`, `wrong_password`\n- 404: `not_found`, `code_not_found`, `invalid_invite`,\n\
-                \  `not_configured`, `unknown_node`, `unknown_org`,\n  `unknown_sandbox`\n- 409: `invalid_state`\
-                \ (wrong sandbox status),\n  `concurrency_limit` (plan's running-sandbox cap),\n  `daily_cap_reached`\
-                \ (workspace daily spend cap),\n  `limit_reached`, `name_taken`, `node_full`, `not_running`,\n\
-                \  `browser_off`, `desktop_off`, `already_deleted`,\n  `already_linked`, `already_member`,\
+                \ (malformed JSON or unknown field),\n  `invalid_link` (a mailed link that is bad, used\
+                \ or expired),\n  `invalid_request`, `bad_signature`, `confirm_required`,\n  `default_environment`,\
+                \ `email_not_allowed`,\n  `endpoint_required`, `invalid_code`, `invalid_email`,\n  `invalid_image`,\
+                \ `invalid_name`, `invalid_nonce`,\n  `invalid_state`, `invalid_token`, `not_admin`,\n\
+                \  `order_mismatch`, `org_required`, `owner_cannot_leave`,\n  `password_too_long`, `password_too_short`,\n\
+                \  `personal_workspace`, `same_email`, `secret_unsupported`,\n  `self`, `too_many`, `unknown_channel`,\n\
+                \  `unknown_environment`, `unknown_installation`,\n  `url_not_allowed`, `use_transfer`,\
+                \ `invalid_rule`,\n  `mesh_credential_refused`\n- 401: `unauthorized`, `invalid_credentials`,\
+                \ `bad_signature`,\n  `passkey_refused`, `no_pending_sign_in`,\n  `recovery_code_refused`,\
+                \ `job_token_expired`\n- 402: `plan_required` (the plan does not include it),\n  `credit_exhausted`\
+                \ (no credit left and no card on file)\n- 403: `forbidden` (the role may not), `token_scope`,\
+                \ `csrf`,\n  `cors`, `email_unverified`, `installation_not_yours`,\n  `no_user`, `not_yours`,\
+                \ `subscriptions_off`,\n  `wrong_account`, `wrong_password`, `step_up_required`,\n  `workspace_suspended`\
+                \ (a platform admin suspended it)\n  (prove a passkey with /v1/auth/step-up, then retry),\n\
+                \  `reauth_required` (sign in again or confirm your password\n  with /v1/auth/reauth,\
+                \ then retry; `error.password` says\n  whether the account has one),\n  `wrong_node` (a\
+                \ node's token naming another node),\n  `not_in_pool` (node heartbeat)\n- 404: `not_found`,\
+                \ `code_not_found`, `invalid_invite`,\n  `not_configured`, `unknown_node`, `unknown_org`,\n\
+                \  `unknown_sandbox`\n- 409: `invalid_state` (wrong sandbox status),\n  `concurrency_limit`\
+                \ (plan's running-sandbox cap),\n  `ci_limit` (plan's CI limit on machines running at\
+                \ once:\n  the job waits; shard workers queue),\n  `daily_cap_reached` (workspace daily\
+                \ spend cap),\n  `limit_reached`, `name_taken`, `node_full`, `not_running`,\n  `browser_off`,\
+                \ `desktop_off`, `already_deleted`,\n  `already_granted`, `already_linked`, `already_member`,\
                 \ `already_on_plan`,\n  `billing_not_open`, `checkout_required`,\n  `code_not_applicable`,\
                 \ `code_redeemed`, `code_taken`,\n  `endpoint_disabled`, `installation_taken`,\n  `invite_pending`,\
                 \ `last_method`, `no_sandbox`,\n  `not_placed`, `not_waiting`, `sandboxes_running`,\n\
-                \  `sole_owner`, `too_many_keys`, `trial_unavailable`,\n  `trial_used`\n- 410: `expired`,\
-                \ `used`, `expired_token`, `expired_invite`,\n  `code_expired`, `code_used_up`\n- 413:\
-                \ `too_large`\n- 415: `unsupported_media_type`\n- 429: `rate_limited` (see the RateLimited\
-                \ response),\n  `too_many_viewers` (desktop viewers)\n- 500: `internal`\n- 501 (this server\
-                \ or host cannot do it yet):\n  `feature_unavailable`, `attach_unavailable`,\n  `exec_unavailable`,\
-                \ `snapshots_unavailable`,\n  `images_unavailable`, `recorder_unavailable`,\n  `attestation_unavailable`\n\
-                - 502: `node_error`, `host_unreachable`, `key_destroy_failed`,\n  `provider_error`, `github_error`,\
-                \ `recorder_error`\n- 503: `no_capacity`, `unhealthy`, `alerts_unavailable`,\n  `auth_unavailable`,\
-                \ `ci_unavailable`, `email_unavailable`,\n  `ingest_unavailable`, `secrets_unavailable`,\n\
-                \  `webhook_not_ready`\n\nThe device-flow code and token endpoints answer 400 in the\n\
-                RFC 6749/8628 shape instead (OAuthError).\n"
+                \  `sole_owner`, `too_many_keys`, `trial_unavailable`,\n  `trial_used`, `default_group`,\
+                \ `in_use`, `network_in_use`,\n  `no_passkeys`, `too_many_passkeys`, `passkey_exists`,\n\
+                \  `last_passkey`, `two_step_off`, `use_passkey`,\n  `no_password`,\n  `version_taken`\
+                \ (official image release), `busy`,\n  `invocation_taken`, `invocation_done` (zode-ci\
+                \ results),\n  `tmux_required` (one-click sign-in needs tmux in the\n  sandbox's image),\
+                \ `enforce_not_available` (test selection),\n  `enforce_not_ready` (Enforce before 200\
+                \ clean Shadow runs),\n  `not_a_proof_repo` (Enforce bypass outside the proof list),\n\
+                \  `node_id_taken` (node heartbeat), `shard_limit`,\n  `runner_not_running`, `memory_fork_unavailable`\
+                \ (CI\n  test-shard workers), `no_change`, `already_suspended`,\n  `not_suspended` (platform\
+                \ admin controls)\n- 410: `expired`, `used`, `expired_token`, `expired_invite`,\n  `code_expired`,\
+                \ `code_used_up`\n- 413: `too_large`\n- 415: `unsupported_media_type`\n- 429: `rate_limited`\
+                \ (see the RateLimited response),\n  `too_many_viewers` (desktop viewers)\n- 500: `internal`\n\
+                - 501 (this server or host cannot do it yet):\n  `feature_unavailable`, `attach_unavailable`,\n\
+                \  `exec_unavailable`, `snapshots_unavailable`,\n  `security_groups_unavailable`,\n  `private_networking_unavailable`,\n\
+                \  `images_unavailable`, `recorder_unavailable`,\n  `attestation_unavailable`, `disk_fork_unavailable`,\n\
+                \  `ports_unavailable`\n- 502: `node_error`, `billing_error` (Stripe unreadable), `helper_failed`\
+                \ (the throwaway sign-in\n  sandbox did not start), `host_unreachable`, `key_destroy_failed`,\n\
+                \  `provider_error`, `github_error`, `recorder_error`, `node_unreachable`\n- 503: `no_capacity`,\
+                \ `unhealthy`, `alerts_unavailable`,\n  `auth_unavailable`, `ci_unavailable`, `email_unavailable`,\n\
+                \  `ingest_unavailable`, `secrets_unavailable`,\n  `webhook_not_ready`, `official_images_off`,\n\
+                \  `ci_tests_unavailable`, `pool_unavailable`\n\nThe device-flow code and token endpoints\
+                \ answer 400 in the\nRFC 6749/8628 shape instead (OAuthError).\n"
             message:
               type: string
     SandboxStatus:
@@ -6420,9 +7822,15 @@ components:
             keeps running. Omitted means the workspace's per-sandbox default.
         image:
           type: string
-          description: 'A ready custom image of the workspace (img_ id or name). It fixes
+          description: 'A ready custom image of the workspace (img_ id or name), which
 
-            the size and region: other values give 400.
+            fixes the size and region (other values give 400), or an official
+
+            image `zode/<line>` (GET /v1/official-images), which comes in every
+
+            size and keeps the requested one. An official line with no
+
+            published build in that size gives 409 `invalid_state`.
 
             '
         browser:
@@ -6431,6 +7839,219 @@ components:
         desktop:
           type: boolean
           description: Switch the desktop on; omitted means the workspace default.
+        security_groups:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            pattern: ^sg_[a-z2-7]{16}$
+          description: 'Up to five security groups of the sandbox''s environment, applied
+
+            before the VM''s first packet. Omitted or empty: the environment''s
+
+            default group.
+
+            '
+    SecurityGroupRule:
+      type: object
+      additionalProperties: false
+      required:
+      - protocol
+      - target
+      properties:
+        protocol:
+          type: string
+          enum:
+          - tcp
+          - udp
+          - icmp
+          - all
+        ports:
+          type: string
+          description: '"all" (the default), one port ("443") or a range ("8000-8100"); tcp and udp only.'
+          example: '443'
+        target:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          description: '`cidr` (an IPv4 network), `host` (api.stripe.com or *.stripe.com,
+
+            outbound only), `mesh` (every route the environment''s private
+
+            network gives), `group` (sandboxes in a security group of the same
+
+            environment) or `internet` (every public address, outbound only).
+
+            '
+          properties:
+            kind:
+              type: string
+              enum:
+              - cidr
+              - host
+              - mesh
+              - group
+              - internet
+            cidr:
+              type: string
+              example: 10.0.0.0/8
+            host:
+              type: string
+              example: '*.github.com'
+            group:
+              type: string
+              pattern: ^sg_[a-z2-7]{16}$
+        description:
+          type: string
+          maxLength: 255
+    SecurityGroup:
+      type: object
+      required:
+      - id
+      - environment_id
+      - name
+      - description
+      - default
+      - inbound
+      - outbound
+      - sandboxes
+      - created_at
+      - updated_at
+      - updated_by
+      properties:
+        id:
+          type: string
+          pattern: ^sg_[a-z2-7]{16}$
+        environment_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        default:
+          type: boolean
+          description: 'The environment''s default group: sandboxes that name no group get it.'
+        inbound:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityGroupRule'
+        outbound:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityGroupRule'
+        sandboxes:
+          type: integer
+          description: Live sandboxes that name the group.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        updated_by:
+          type: string
+    MeshSetup:
+      type: object
+      properties:
+        tailscale_policy:
+          type: string
+          description: tagOwners and autoApprovers to add to the tailnet policy
+        note:
+          type: string
+    EnvironmentNetwork:
+      type: object
+      required:
+      - cidr
+      - domains
+      - available
+      - connected
+      - has_api_token
+      - nodes
+      properties:
+        cidr:
+          type: string
+        domains:
+          type: array
+          items:
+            type: string
+        available:
+          type: boolean
+          description: This region's nodes can run mesh routers.
+        connected:
+          type: boolean
+        provider:
+          type: string
+          enum:
+          - tailscale
+          - headscale
+          - netbird
+        control_url:
+          type: string
+        credential_kind:
+          type: string
+          enum:
+          - auth_key
+          - oauth_client
+          - setup_key
+        oauth_client_id:
+          type: string
+        has_api_token:
+          type: boolean
+        connected_at:
+          type: string
+          format: date-time
+        setup:
+          $ref: '#/components/schemas/MeshSetup'
+        nodes:
+          type: array
+          items:
+            type: object
+            properties:
+              node_id:
+                type: string
+              slice:
+                type: string
+              hostname:
+                type: string
+              online:
+                type: boolean
+              routes_approved:
+                type: boolean
+              routes:
+                type: array
+                items:
+                  type: string
+              error:
+                type: string
+              sandboxes:
+                type: integer
+              checked_at:
+                type: string
+                format: date-time
+    SecurityGroupRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        environment_id:
+          type: string
+          description: Create only; default the workspace's default environment.
+        name:
+          type: string
+          pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$
+        description:
+          type: string
+          maxLength: 255
+        inbound:
+          type: array
+          maxItems: 60
+          items:
+            $ref: '#/components/schemas/SecurityGroupRule'
+        outbound:
+          type: array
+          maxItems: 60
+          items:
+            $ref: '#/components/schemas/SecurityGroupRule'
     CreateImageRequest:
       type: object
       additionalProperties: false
@@ -6629,6 +8250,38 @@ components:
         created_at:
           type: string
           format: date-time
+    PortPreview:
+      type: object
+      required:
+      - id
+      - sandbox_id
+      - port
+      - url
+      - access
+      - created_at
+      properties:
+        id:
+          type: string
+          pattern: ^prt_[a-z2-7]{16}$
+        sandbox_id:
+          type: string
+        port:
+          type: integer
+        url:
+          type: string
+          description: https://<port>-<random>.<preview domain>
+        access:
+          type: string
+          enum:
+          - private
+          - public
+          - password
+        created_at:
+          type: string
+          format: date-time
+        password:
+          type: string
+          description: Only when a password preview is opened
     Images:
       type: object
       required:

@@ -56,6 +56,7 @@
               "concepts/images",
               "concepts/official-images",
               "concepts/environments-and-secrets",
+              "concepts/networking",
               "concepts/browser-and-desktop",
               "concepts/agents",
               "concepts/spend-and-caps",
@@ -79,9 +80,17 @@
             "group": "CLI",
             "pages": [
               "cli/overview",
+              "cli/reference",
               "cli/sandboxes",
+              "cli/snapshots",
+              "cli/ports",
+              "cli/logs-stats",
+              "cli/up-down",
+              "cli/environments-secrets",
               "cli/browser-desktop",
               "cli/images",
+              "cli/workspace",
+              "cli/ci",
               "cli/cost",
               "cli/verify",
               "cli/mcp"
@@ -132,6 +141,15 @@
               "POST /v1/sandboxes/{id}/stop",
               "POST /v1/sandboxes/{id}/start",
               "GET /v1/concurrency"
+            ]
+          },
+          {
+            "group": "Port previews",
+            "openapi": "api-reference/openapi.yaml",
+            "pages": [
+              "GET /v1/sandboxes/{id}/ports",
+              "POST /v1/sandboxes/{id}/ports",
+              "DELETE /v1/sandboxes/{id}/ports/{port}"
             ]
           },
           {
@@ -191,6 +209,23 @@
             ]
           },
           {
+            "group": "Networking",
+            "openapi": "api-reference/openapi.yaml",
+            "pages": [
+              "GET /v1/security-groups",
+              "POST /v1/security-groups",
+              "GET /v1/security-groups/{id}",
+              "PATCH /v1/security-groups/{id}",
+              "DELETE /v1/security-groups/{id}",
+              "GET /v1/sandboxes/{id}/security-groups",
+              "PUT /v1/sandboxes/{id}/security-groups",
+              "GET /v1/environments/{id}/network",
+              "PUT /v1/environments/{id}/network",
+              "PUT /v1/environments/{id}/mesh",
+              "DELETE /v1/environments/{id}/mesh"
+            ]
+          },
+          {
             "group": "Flight recorder",
             "openapi": "api-reference/openapi.yaml",
             "pages": [
@@ -224,7 +259,8 @@
               "POST /v1/proxying/keys",
               "DELETE /v1/proxying/keys/{key}",
               "POST /v1/proxying/keys/order",
-              "PATCH /v1/proxying/settings"
+              "PATCH /v1/proxying/settings",
+              "POST /v1/proxying/loop/resume"
             ]
           },
           {

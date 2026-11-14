@@ -14,7 +14,7 @@ zode image rm <image>
 zode new [name] --image <image>
 ```
 
-`<image>` is a name or an `img_` id. Names match `^[a-z0-9][a-z0-9._-]{0,62}$`.
+`<image>` is a name or an `img_` id. Names match `^[a-z0-9][a-z0-9._-]{0,62}$`. `zode build` is short for `zode image build`, and `zode images` works too.
 
 ## Build
 
@@ -108,6 +108,8 @@ zode new api-1 --image app-dev
 ```
 
 The image fixes the size, so `--size` with `--image` fails with `an image has its own size; drop --size`. Only a `ready` image can be used.
+
+The CLI refuses `--size` with an [official image](/concepts/official-images) such as `zode/base` too, although official images come in every size. To start one at another size, use the API or SDK with `image` and a size.
 
 ## Plan limits
 

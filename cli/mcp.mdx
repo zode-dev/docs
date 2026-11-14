@@ -3,7 +3,7 @@ title: "MCP server"
 description: "Give Claude Code, Codex, Cursor or any MCP client tools to make sandboxes and work in them with zode mcp."
 ---
 
-`zode mcp` runs an MCP server on stdio. Your agent starts it as a subprocess and gets nine tools for sandboxes. It acts with your `zode` sign-in, in your workspace, with your plan's limits.
+`zode mcp` runs an MCP server on stdio. Your agent starts it as a subprocess and gets 15 tools for sandboxes. It acts with your `zode` sign-in, in your workspace, with your plan's limits.
 
 ## Sign in first
 
@@ -40,7 +40,7 @@ The server reads the same credentials as the CLI: the API key saved by [`zode lo
 
 To use an API key instead of your sign-in, for example on a shared machine, give the server `ZODE_TOKEN` in its environment. In the Cursor config, add `"env": { "ZODE_TOKEN": "zode_tok_..." }` next to `args`.
 
-The server also sends the agent short instructions: work happens in `/workspace`, refer to sandboxes by name, fork to try two approaches, delete when done.
+The server also sends the agent short instructions: work happens in `/workspace`, refer to sandboxes by name, fork to try two approaches, save a snapshot before a risky step, share a dev server with `port_open`, delete when done.
 
 ## Agent skill
 
@@ -65,6 +65,12 @@ Every `sandbox` parameter takes a sandbox name or `sbx_` id. Tools that return a
 | `sandbox_stop` | `sandbox` | Hibernates it: memory and disk kept, compute billing stops. |
 | `sandbox_start` | `sandbox` | Wakes a stopped sandbox where it left off. |
 | `sandbox_delete` | `sandbox` | Deletes it and its disk. Cannot be undone. |
+| `snapshot_save` | `sandbox`, `snapshot` (optional name) | Saves memory and disk as a snapshot. A sandbox keeps up to 20. Returns the snapshot's `id`, `name`, `sandbox_id`, `sandbox_name`, `include_ram` and `created_at`. |
+| `snapshot_list` | `sandbox` | The sandbox's snapshots, newest first, as `snapshots`. |
+| `snapshot_restore` | `sandbox`, `snapshot` (name or `snp_` id) | Rolls the sandbox back to the snapshot. Later changes are lost. |
+| `port_open` | `sandbox`, `port`, `access` | Shares a port at an https URL. See [port_open](#port_open). |
+| `sandbox_logs` | `sandbox`, `since`, `tracks` | What ran, AI calls and network requests. See [sandbox_logs and sandbox_stats](#sandbox_logs-and-sandbox_stats). |
+| `sandbox_stats` | `sandbox`, `since` | CPU, memory, network, processes and AI spend over a window. |
 
 ### sandbox_create
 
@@ -94,8 +100,28 @@ It returns `exit_code`, `stdout`, `stderr`, `duration_ms`, and `timed_out` or `t
 
 `sandbox_read_file` and `sandbox_write_file` take an absolute path, or a path relative to `/workspace`. `sandbox_read_file` returns the file in `stdout`, with the same fields as `sandbox_exec`.
 
+### port_open
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `sandbox` | string | Required. |
+| `port` | integer | Required. The port a server listens on in the sandbox, such as `3000`. |
+| `access` | string | `private` (default: people in the workspace), `public` (anyone with the URL) or `password`. |
+
+It returns `id`, `port`, `url`, `access`, `created_at`, and `password` for a password preview, shown this once. Opening a port again gives a new URL. See [Port previews](/cli/ports).
+
+### sandbox_logs and sandbox_stats
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `sandbox` | string | Required. |
+| `since` | string | How far back: `30m`, `2h`, `7d`, or an RFC 3339 time. Default `1h`. |
+| `tracks` | string | `sandbox_logs` only: any of `process`, `ai`, `net`, `metrics`, comma separated. Default `process,ai,net`. |
+
+`sandbox_logs` returns `lines`, one per entry in the format of [`zode logs`](/cli/logs-stats), oldest first. It keeps the newest 400 and sets `truncated` when it dropped older ones. `sandbox_stats` returns the numbers of [`zode stats`](/cli/logs-stats#zode-stats): `samples`, `avg_cpu_pct`, `max_cpu_pct`, `max_ram_mb`, `max_psi_mem_some`, `net_rx_bytes`, `net_tx_bytes`, `processes`, `oom_kills`, `net_blocked`, `ai_calls` and `ai_cost_micros`.
+
 ## Limits
 
-- `sandbox_create` has no environment or spend-cap input. For those, use [`zode new`](/cli/sandboxes) with `--environment` or `--max-cost` and give the agent the name.
+- `sandbox_create` has no environment, spend-cap or security group input. For those, use [`zode new`](/cli/sandboxes) with `--environment` or `--max-cost` and give the agent the name.
 - The tools need a running sandbox for exec and files. A stopped one gives `demo is stopped; start it first`.
 - Plan limits apply as in the CLI: on Free, at most 2 sandboxes run at once, and a workspace with no card and no credit cannot make sandboxes.

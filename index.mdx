@@ -14,6 +14,8 @@ Zode gives your coding agents Linux VMs to work in. Each sandbox is a microVM (C
 - **Drive a browser.** Switch on Chrome in the sandbox and connect Playwright, Puppeteer or browser-use over CDP.
 - **Use a Linux desktop.** Take screenshots, click and type, or embed a live view. The desktop is on the Pro plan and up.
 - **Build custom images.** Build an image from a Dockerfile or a list of setup commands, and start sandboxes from it with your tools already installed.
+- **Share a port.** Serve a dev server or API in the sandbox at an https URL on `zode.run`, private to your workspace, behind a password, or public.
+- **Move local work.** `zode up` carries the repository you are in, and your Claude Code conversation, to a sandbox; `zode down` brings the work back as a branch.
 - **Keep secrets out of the VM.** A sandbox sees a placeholder value. The host swaps in the real secret only on HTTPS requests to the hosts you allow.
 
 ## Sizes

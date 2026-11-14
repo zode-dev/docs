@@ -4,6 +4,12 @@ description: "User-facing changes to Zode: the API, CLI, SDK, console and sandbo
 ---
 
 <Update label="2026-11-14" description="Port previews, zode up and down, and the CLI covers the console">
+**Security groups and private networking are on**
+
+- Security groups are enforced on every host in `eu-central`: create them with `zode sg`, the console or the API, and attach them to sandboxes. A sandbox with groups only runs on a host that enforces them. See [Networking](/concepts/networking).
+- Private networking over Tailscale, Headscale or NetBird is available: connect an environment with `zode env mesh`.
+- CI warm snapshots, fan-out shards and the Enforce background run work again on every host.
+
 **Port previews**
 
 - `zode port <sandbox> <port>` serves a port at `https://<port>-<random>.zode.run`: private to the workspace by default, `--password` for a password shown once, or `--public`. WebSockets work, so dev servers reload live. Up to 10 per sandbox. See [Port previews](/cli/ports).

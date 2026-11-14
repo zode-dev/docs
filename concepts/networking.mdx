@@ -1,0 +1,45 @@
+---
+title: "Networking"
+description: "What a sandbox can reach, security groups, and private networking over Tailscale, Headscale or NetBird. Both are built but not switched on in eu-central yet."
+---
+
+## What a sandbox can reach today
+
+- The public internet. Web traffic on ports 80 and 443 goes through the host's egress proxy, which [swaps in secrets](/concepts/environments-and-secrets#how-secrets-work), meters AI calls and records each connection for the [flight recorder](/cli/logs-stats). Other ports go straight out.
+- Not other sandboxes, private address ranges, the cloud metadata service, or SMTP ports 25, 465 and 587. These are blocked on the host, outside the VM, and nothing in the sandbox can change that.
+- Inbound: nothing reaches a sandbox from outside except through Zode: [attach and exec](/api-reference/attach), the browser and desktop, and [port previews](/cli/ports).
+
+To let a sandbox reach a host only your own machine can, run [`zode bridge`](/cli/up-down#zode-bridge).
+
+## Security groups
+
+<Warning>
+Security groups are not switched on in `eu-central` yet. You can list them, but creating, changing or attaching one returns 501 `security_groups_unavailable`. `GET /v1/security-groups` answers `"enforced": false` until they are on, and the console shows them read-only.
+</Warning>
+
+A security group is a set of allow rules for what a sandbox may send (outbound) and receive (inbound). Anything no rule allows is dropped. Rules are stateful: replies to an allowed connection are allowed. They are enforced on the host, so a program in the sandbox cannot change them.
+
+- Groups belong to an environment. Every environment has a group called `default`: outbound to the internet and the mesh, inbound only from other members of `default`. That is what sandboxes have today.
+- A sandbox has up to 5 groups and is allowed the union of their rules. A sandbox that names none gets its environment's `default`.
+- A rule has a protocol (`tcp`, `udp`, `icmp` or `all`), ports (one, a range, or all) and a target: `internet`, `mesh`, a CIDR, a host name (outbound only, such as `api.stripe.com` or `*.stripe.com`), or another group in the same environment.
+- Up to 60 rules per group. A rule that names a range Zode keeps for itself is refused, so nobody believes it works.
+- Changing a group applies to running sandboxes within seconds, and cuts live connections the new rules no longer allow.
+- A group that a sandbox uses cannot be deleted.
+
+Manage them with [`zode sg`](/cli/workspace#zode-sg), the console (**Security groups**), or the API: `GET` and `POST /v1/security-groups`, `GET`, `PATCH` and `DELETE /v1/security-groups/{id}`, and `GET` and `PUT /v1/sandboxes/{id}/security-groups`. Owners and admins change them.
+
+## Private networking
+
+<Warning>
+Private networking is not switched on in `eu-central` yet. `GET /v1/environments/{id}/network` answers `"available": false`, and connecting a mesh returns 501 `private_networking_unavailable`.
+</Warning>
+
+Private networking connects an environment to your own Tailscale tailnet, Headscale server or NetBird network. Sandboxes in that environment can then reach what your mesh reaches, such as a database behind a subnet router, and your machines can reach the sandboxes by a private IP, under your mesh's own access rules.
+
+- The environment has a private range, an IPv4 `/16` from the private ranges (default `10.77.0.0/16`). Ranges Zode or the mesh uses (including `100.64.0.0/10`) are refused.
+- Each sandbox gets a private IP from that range, kept across stop and start. A fork or restored snapshot gets its own.
+- Names under the mesh's DNS domain, or domains you list, resolve through the mesh. Everything else resolves as before.
+- The mesh credential (a Tailscale OAuth client or auth key, or a NetBird setup key) is written once and never returned. It never enters a sandbox.
+- IPv4 only.
+
+Manage it with [`zode env network` and `zode env mesh`](/cli/environments-secrets#private-network-and-mesh), or the API: `GET` and `PUT /v1/environments/{id}/network` (`cidr`, `domains`), and `PUT` and `DELETE /v1/environments/{id}/mesh`. The console's environment **Networking** tab shows each host's connection and the policy lines to paste into your tailnet.

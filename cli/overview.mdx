@@ -87,6 +87,8 @@ A revoked or missing key prints `zode: not signed in, or the API key was revoked
 
 ## Commands
 
+Every command and flag is on the [CLI reference](/cli/reference) page. By task:
+
 | Command | What it does | Page |
 |---|---|---|
 | `zode login`, `logout`, `whoami`, `version` | Sign in and out, show the account, print the version | This page |
@@ -94,13 +96,25 @@ A revoked or missing key prints `zode: not signed in, or the API key was revoked
 | `zode new [name]` | Make a sandbox | [Sandboxes](/cli/sandboxes) |
 | `zode ssh <sandbox>` | Open a shell | [Sandboxes](/cli/sandboxes) |
 | `zode exec <sandbox> -- cmd` | Run a command, stream its output | [Sandboxes](/cli/sandboxes) |
+| `zode prompt <sandbox> "task"` | Give a coding agent one task | [Sandboxes](/cli/sandboxes#give-an-agent-a-task) |
 | `zode fork <sandbox> [name]` | Copy a sandbox, memory and disk included | [Sandboxes](/cli/sandboxes) |
 | `zode stop`, `start`, `rm` | Hibernate, wake, delete | [Sandboxes](/cli/sandboxes) |
+| `zode snapshot save`, `ls`, `restore`, `rm` | Save a sandbox and roll it back | [Snapshots](/cli/snapshots) |
+| `zode port <sandbox> <port>` | Share a port at an https URL | [Port previews](/cli/ports) |
+| `zode logs <sandbox>`, `zode stats <sandbox>` | What ran, AI calls, network; CPU and memory | [Logs and stats](/cli/logs-stats) |
+| `zode up`, `down`, `bridge` | Move local work to a sandbox and back; reach your machine's hosts | [Move local work](/cli/up-down) |
+| `zode env`, `zode secret` | Environments, variables, secrets and private networks | [Environments and secrets](/cli/environments-secrets) |
 | `zode browser <sandbox>` | Print a CDP endpoint for Chrome | [Browser and desktop](/cli/browser-desktop) |
 | `zode desktop <sandbox>` | Open, screenshot and drive the Linux desktop. Exits 1 when the desktop is off | [Browser and desktop](/cli/browser-desktop) |
-| `zode image build`, `ls`, `logs`, `rm` | Build and manage custom images | [Images](/cli/images) |
+| `zode image build`, `ls`, `logs`, `rm`, and `zode build` | Build and manage custom images | [Images](/cli/images) |
+| `zode workspace`, `audit`, `billing` | The workspace and its defaults, the audit log, billing | [Workspace settings](/cli/workspace) |
+| `zode agent` | Your coding agents, their models and how they sign in | [Workspace settings](/cli/workspace#zode-agent) |
+| `zode token`, `team`, `ai-key` | API keys, people, AI provider keys | [Workspace settings](/cli/workspace) |
+| `zode webhook`, `alert`, `otel` | Webhooks, alerts, OpenTelemetry export | [Workspace settings](/cli/workspace) |
+| `zode sg` | Security groups | [Workspace settings](/cli/workspace#zode-sg) |
+| `zode ci` | CI jobs, costs, cap, test selection, slow and flaky tests | [zode ci](/cli/ci) |
 | `zode cost` | Usage and cost of the workspace | [Cost](/cli/cost) |
 | `zode verify <sandbox\|region>` | Check a host's signed release yourself | [Verify](/cli/verify) |
 | `zode mcp` | MCP server for coding agents | [MCP server](/cli/mcp) |
 
-Some commands have aliases: `list` for `ls`, `create` for `new`, `shell` for `ssh`, `run` for `exec`, `delete` for `rm`, `images` for `image`. `zode help` prints the full usage.
+Commands with subcommands print their own usage with `help`, for example `zode port help` or `zode secret help`. `zode help` prints the full usage. Aliases are listed on the [CLI reference](/cli/reference#aliases).

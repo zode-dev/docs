@@ -49,9 +49,9 @@ Each host gets a heading line, then one line per result:
 | `ok` | A check that passed. |
 | `fail` | The first check that failed. If the host claimed a class it could not prove, a second line says `the host claims <class>; do not send it secrets`. |
 | `note` | What the proven class does not cover. |
+| `log` | The Rekor entry on `https://search.sigstore.dev/?logIndex=N`. |
 
 Failure messages leave out file paths on the host; they only say what failed.
-| `log` | The Rekor entry on `https://search.sigstore.dev/?logIndex=N`. |
 
 A verified host's heading reads `<region> <host>: verified, signed_image, release <release>`.
 

@@ -1,0 +1,212 @@
+---
+title: "CLI reference"
+description: "Every zode command, subcommand and flag on one page."
+---
+
+A `<sandbox>` is a sandbox's name or `sbx_` id. Where `--env ENV` appears, ENV is an environment name or `env_` id and defaults to `default`. Commands that read a secret value (`zode secret set`, `zode ai-key add`, `zode alert channel add` without `--url`, `zode otel set --header`) read it from stdin, or ask for it without echo at a terminal. `ZODE_TOKEN` and `ZODE_API` override the saved sign-in ([Environment variables](/cli/overview#environment-variables)).
+
+## Account
+
+| Command | Flags | Notes |
+|---|---|---|
+| `zode login` | `--api URL` | Device sign-in in the browser. [Overview](/cli/overview#sign-in) |
+| `zode logout` | | Forget the API key on this machine. |
+| `zode whoami` | | Who and which workspace you are signed in as. |
+| `zode version` | | Also `--version`, `-v`. |
+| `zode help` | | Full usage. Also `--help`, `-h`. |
+
+## Sandboxes
+
+| Command | Flags | Notes |
+|---|---|---|
+| `zode ls` | | [Sandboxes](/cli/sandboxes#list) |
+| `zode new [name]` | `--size S`, `--image IMG`, `--browser[=false]`, `--desktop[=false]`, `--environment ENV`, `--repo URL`, `--branch B`, `--pr N`, `--max-cost USD` | Default size `small`. `--image` and `--size` exclude each other. [Make](/cli/sandboxes#make) |
+| `zode ssh <sandbox> [-- cmd ...]` | `-e KEY[=VALUE]`, `--env-file FILE` (before the sandbox) | [Open a shell](/cli/sandboxes#open-a-shell) |
+| `zode exec <sandbox> -- cmd ...` | `-t`/`--tty`, `-e`/`--env KEY[=VALUE]`, `--env-file FILE` (before the sandbox) | Exits with the command's code. [Run a command](/cli/sandboxes#run-a-command) |
+| `zode prompt <sandbox> "task"`, `zode prompt --new "task"` | `--agent A`, `--model M`, `--cd DIR`, `-e KEY[=VALUE]`, `--new`, `--size S` (default `default`), `--max-cost USD` | [Give an agent a task](/cli/sandboxes#give-an-agent-a-task) |
+| `zode fork <sandbox> [name]` | `--browser[=false]`, `--desktop[=false]`, `--branch B`, `--pr N`, `--max-cost USD` | [Fork](/cli/sandboxes#fork) |
+| `zode stop <sandbox>` | | Hibernate. |
+| `zode start <sandbox>` | | Wake. |
+| `zode rm <sandbox>` | | Delete, with its disk. |
+
+## Snapshots
+
+| Command | Notes |
+|---|---|
+| `zode snapshot save <sandbox> [name]` | Up to 20 per sandbox. |
+| `zode snapshot ls [sandbox]` | All snapshots, or one sandbox's. |
+| `zode snapshot restore <sandbox> <snapshot>` | Roll the sandbox back. |
+| `zode snapshot rm <sandbox> <snapshot>` | |
+
+[Snapshots](/cli/snapshots)
+
+## Port previews
+
+| Command | Flags | Notes |
+|---|---|---|
+| `zode port <sandbox> <port>` | `--public` or `--password` | Default: people in the workspace. |
+| `zode port ls <sandbox>` | | |
+| `zode port rm <sandbox> <port>` | | |
+
+[Port previews](/cli/ports)
+
+## Logs and stats
+
+| Command | Flags | Notes |
+|---|---|---|
+| `zode logs <sandbox>` | `--since D` (default `1h`), `--tracks T` (default `process,ai,net`), `-f`/`--follow`, `--json` | [zode logs](/cli/logs-stats#zode-logs) |
+| `zode stats <sandbox>` | `--since D` (default `1h`), `--json` | [zode stats](/cli/logs-stats#zode-stats) |
+
+## Move local work
+
+| Command | Flags | Notes |
+|---|---|---|
+| `zode up` | `--session`, `--task TEXT`, `--name N`, `--size S` (default `default`), `--sandbox EXISTING`, `--env-file F`, `--host KEY=H[,H]`, `--bridge HOST:PORT`, `--no-secrets`, `--unverified`, `--yes`/`-y` | Run in a git repository. [zode up](/cli/up-down#zode-up) |
+| `zode down` | `--stop`, `--no-session`, `--sandbox S` | [zode down](/cli/up-down#zode-down) |
+| `zode bridge <sandbox> HOST:PORT ...` | | Up to 20 hosts. [zode bridge](/cli/up-down#zode-bridge) |
+
+## Environments and secrets
+
+| Command | Flags | Notes |
+|---|---|---|
+| `zode env ls` | | |
+| `zode env create <name>` | | |
+| `zode env rm <env>` | | Not `default`. |
+| `zode env vars` | `--env ENV` | |
+| `zode env set KEY=VALUE ...` | `--env ENV` | |
+| `zode env unset KEY ...` | `--env ENV` | |
+| `zode env network <env>` | `--cidr C`, `--domains a,b` | Shows, or with flags changes, the private network. Not switched on yet. |
+| `zode env mesh <env> tailscale\|headscale\|netbird` | `--control-url U`, `--oauth-client-id ID` (Tailscale), `--api-token` (NetBird) | Credentials from stdin or a prompt. Not switched on yet. |
+| `zode env mesh <env> off` | | Disconnect. |
+| `zode secret ls` | `--env ENV` | Never values. |
+| `zode secret set NAME` | `--host H` (one or more, required), `--env ENV`, `--unverified` | Value from stdin or a prompt. Checks hosts first. |
+| `zode secret allow NAME HOST` | `--env ENV` | Adds one host, keeps the value. |
+| `zode secret rm NAME` | `--env ENV` | |
+
+[Environments and secrets](/cli/environments-secrets)
+
+## Browser and desktop
+
+| Command | Flags | Notes |
+|---|---|---|
+| `zode browser <sandbox>` | `--on`, `--off`, `--json` | Prints a CDP URL. |
+| `zode desktop <sandbox>` | `--on`, `--off`, `--json` (with `--on` or `--off`) | Prints the console URL; exits 1 when the desktop is off. |
+| `zode desktop <sandbox> screenshot` | `-o FILE` (`-` for stdout) | |
+| `zode desktop <sandbox> click X Y` | `--button left\|middle\|right`, `--double` | |
+| `zode desktop <sandbox> move X Y` | | |
+| `zode desktop <sandbox> type TEXT` | | |
+| `zode desktop <sandbox> key KEYS` | | Such as `ctrl+l` or `Return`. |
+| `zode desktop <sandbox> scroll X Y` | `--dx N`, `--dy N` | |
+
+[Browser and desktop](/cli/browser-desktop)
+
+## Images
+
+| Command | Flags | Notes |
+|---|---|---|
+| `zode image build <name>` | `-f FILE` (`-` for stdin), or `--run CMD` (repeat) with `-e K=V`, `--workdir DIR`, `--start CMD`, `--ready CMD`; and `--size S`, `--timeout MIN` (default 30, at most 60), `--detach` | `zode build` is the same. |
+| `zode image ls` | | |
+| `zode image logs <image>` | `-f`/`--follow` | |
+| `zode image rm <image>` | | Cancels a build or deletes an image. |
+
+[Images](/cli/images)
+
+## Workspace settings
+
+| Command | Flags | Notes |
+|---|---|---|
+| `zode workspace` | | Name, plan, members, defaults, sandboxes running. |
+| `zode workspace set` | `--name N`, `--display-name D`, `--billing-email E`, `--browser on\|off`, `--desktop on\|off` | Owner and admin. |
+| `zode audit` | `--actor EMAIL`, `--action PREFIX`, `--target ID`, `--from DAY`, `--to DAY`, `--limit N` (1 to 500, default 50), `--before ID`, `--json` or `--csv` | Owner and admin. `--csv` on Team and up. |
+| `zode billing` | | Read only. |
+| `zode billing invoices` | | |
+| `zode agent ls` | | Your agents, keys and subscriptions. |
+| `zode agent models <agent>` | | |
+| `zode agent default <agent\|none>` | | |
+| `zode agent model <agent> <model\|none>` | | |
+| `zode agent auth <agent> api-key\|subscription` | | `claude-code` or `codex`. |
+| `zode agent key set <provider>`, `zode agent key rm <provider>` | | Key from stdin or a prompt. |
+| `zode agent sub sign-in <agent>` | `--sandbox S` | |
+| `zode agent sub set claude-code` | | Token from stdin or a prompt. |
+| `zode agent sub set codex` | `--auth-file F` (default `~/.codex/auth.json`) | |
+| `zode agent sub rm <agent>` | | |
+| `zode token ls` | | |
+| `zode token create <name>` | `--scope full\|sandboxes\|read_only`, `--days N` | Secret shown once. |
+| `zode token rm <name\|tok_ id>` | | |
+| `zode team ls` | | |
+| `zode team invite <email>` | `--role R` (default `member`) | |
+| `zode team role <email> <role>` | | |
+| `zode team rm <email>` | | Removes a member or revokes an invite. |
+| `zode ai-key ls` | | |
+| `zode ai-key add <provider>` | `--label L` | Key from stdin or a prompt. |
+| `zode ai-key rm <id>` | | |
+| `zode webhook ls`, `events` | | |
+| `zode webhook add <url>` | `--events a,b` (required), `--description D` | Signing secret shown once. |
+| `zode webhook test`, `deliveries`, `on`, `off`, `rotate`, `rm` `<id>` | | |
+| `zode alert ls`, `events` | | |
+| `zode alert channel add email <name>` | `--to a@x,b@y`, `--members managers\|all` | |
+| `zode alert channel add slack\|discord\|webhook <name>` | `--url U` | URL from stdin or a prompt when left out. |
+| `zode alert channel add telegram <name>` | `--chat-id ID` (required) | Bot token from stdin or a prompt. |
+| `zode alert channel test`, `rm` `<id>` | | |
+| `zode alert rule add <event>` | `--channel ID[,ID]` (required) | |
+| `zode alert rule on`, `off`, `rm` `<id>` | | |
+| `zode otel` | | Shows the export. |
+| `zode otel set` | `--endpoint URL`, `--protocol http\|grpc`, `--header NAME` (repeat) | Header values from stdin or a prompt. |
+| `zode otel on`, `off`, `test`, `rm` | | |
+| `zode sg ls` | | |
+| `zode sg show <group>` | | |
+| `zode sg create <name>` | `--env ENV`, `--description D`, `--in RULE` (repeat), `--out RULE` (repeat) | Not switched on yet. |
+| `zode sg rules <group>` | `--in RULE`, `--out RULE` | Replaces the directions given. |
+| `zode sg rm <group>` | | |
+| `zode sg attach <sandbox> <group>[,<group>]` | | Replaces the sandbox's groups. |
+
+[Workspace settings](/cli/workspace)
+
+## CI
+
+| Command | Flags | Notes |
+|---|---|---|
+| `zode ci` | | Setup, spend, cap, standby, limit. |
+| `zode ci jobs` | `--limit N` (default 20, at most 200) | |
+| `zode ci job <id>` | | |
+| `zode ci costs` | `--month YYYY-MM` | |
+| `zode ci cap <USD\|0\|none>` | | Owner and admin. |
+| `zode ci selection [<owner/repo>]` | `--mode off\|shadow\|enforce`, `--policy every\|sample\|default_branch` | Setting needs owner or admin. |
+| `zode ci tests slowest\|flaky` | `--repo owner/name` (required), `--days N`, `--limit N` | |
+
+[zode ci](/cli/ci)
+
+## Cost, verify, MCP
+
+| Command | Flags | Notes |
+|---|---|---|
+| `zode cost` | `--days N` (default 7), `--from YYYY-MM-DD`, `--to YYYY-MM-DD`, `--by repo\|branch\|pr\|member\|sandbox\|model` (default `repo`), `--csv` | [Cost](/cli/cost) |
+| `zode verify <sandbox\|region>` | `--json` (after the argument) | [Verify](/cli/verify) |
+| `zode verify --manifest FILE --bundle FILE` | | Offline check of a release manifest. |
+| `zode mcp` | | MCP server on stdio. [MCP server](/cli/mcp) |
+
+## Aliases
+
+| Command | Also |
+|---|---|
+| `ls` | `list` |
+| `new` | `create` |
+| `ssh` | `shell` |
+| `exec` | `run` |
+| `rm` | `delete` |
+| `image build` | `build` |
+| `image` | `images` |
+| `snapshot` | `snapshots` |
+| `secret` | `secrets` |
+| `env` | `envs`, `environment`, `environments` |
+| `token` | `tokens`, `key`, `keys` |
+| `port` | `ports` |
+| `logs` | `log` |
+| `webhook` | `webhooks` |
+| `alert` | `alerts` |
+| `sg` | `security-group`, `security-groups` |
+| `ai-key` | `ai-keys` |
+| `workspace` | `org` |
+| `agent` | `agents` |
+
+Most subcommands also take `list` for `ls` and `delete` for `rm`.

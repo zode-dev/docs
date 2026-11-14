@@ -1,0 +1,141 @@
+---
+title: "Move local work"
+description: "zode up carries the repository you are in, its .env values and your Claude Code conversation to a sandbox. zode down brings the work back as a branch. zode bridge lets a sandbox reach hosts only your machine can."
+---
+
+`zode up` moves the project you are working on from your machine to a sandbox, uncommitted changes included, so an agent can carry on there while your laptop is closed. `zode down` brings the result back. Run both inside a git repository.
+
+```bash
+zode up --session      # move the work and the Claude Code conversation
+zode down              # bring it back as branch zode/<sandbox>
+```
+
+## zode up
+
+```bash
+zode up [--session] [--task TEXT] [--name N] [--size S] [--sandbox EXISTING]
+        [--env-file F] [--host KEY=H[,H]] [--bridge HOST:PORT]
+        [--no-secrets] [--unverified] [--yes]
+```
+
+| Flag | Effect |
+|---|---|
+| `--session` | Bring this folder's newest Claude Code conversation too, and continue it in the sandbox. |
+| `--task TEXT` | What to tell Claude Code when it resumes. Default: a note that it was moved to a sandbox and should carry on. |
+| `--name N` | Name for the new sandbox. Default: the repository's folder name; if that is taken, a dated name. |
+| `--size S` | `small`, `default`, `large` or `xlarge`. Default `default` (4 vCPU, 8 GB). |
+| `--sandbox EXISTING` | Use a running sandbox you already have instead of making one. |
+| `--env-file F` | Read these files instead of the usual `.env` files. Repeat for more. |
+| `--host KEY=H[,H]` | Hosts the secret `KEY` may be sent to. Repeat for more keys. |
+| `--bridge HOST:PORT` | When the move is done, keep a [bridge](#zode-bridge) open. Repeat for more hosts. |
+| `--no-secrets` | Leave every `.env` value behind. |
+| `--unverified` | Upload secrets even when the [host check](/cli/environments-secrets#host-check-before-upload) fails. |
+| `--yes`, `-y` | Skip the confirmation. Needed when stdin is not a terminal. |
+
+### What moves
+
+**Files.** Tracked and untracked files that git does not ignore, as they are on disk, plus `.git` with its history. They go to `/workspace/<repo>` in the sandbox. These never move: `.env` files, `*.pem`, `*.key`, `*.p12`, `*.pfx`, SSH keys (`id_rsa` and kin), `.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, `credentials` and `credentials.json`, `.aws`, `.ssh`, `.gnupg` and `service-account*.json`. The confirmation names each file left behind.
+
+**.env values.** From `.env`, `.env.local`, `.env.development` and `.env.development.local` (or `--env-file`). Later files win. Each value is sorted into one of four kinds:
+
+| Kind | Which values | Where it goes |
+|---|---|---|
+| secret | A name with `KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `AUTH` and the like (but not `PUBLIC_` or `NEXT_PUBLIC_`), or a token-shaped value such as `sk_live_...`, `ghp_...` or `AKIA...` | A vault secret: the sandbox sees a placeholder |
+| stays | A value that points at this machine (`localhost`, `127.0.0.1`, `host.docker.internal`) | Left behind: the sandbox has its own Postgres and Redis |
+| variable | Everything else | A plain variable |
+| skipped | Names starting with `ZODE_`, and empty values | Left behind |
+
+Secrets and variables go into an environment named `up-<repo>`, made on first use, and the new sandbox reads it.
+
+A secret needs hosts to be sent to. They come from `--host KEY=...`, then a built-in list for well-known names, then the host of the value itself when it is a URL:
+
+| Names | Hosts |
+|---|---|
+| `STRIPE_*` | `api.stripe.com` |
+| `OPENAI_*` | `api.openai.com` |
+| `ANTHROPIC_*` | `api.anthropic.com` |
+| `GEMINI_*`, `GOOGLE_AI_*`, `GOOGLE_GENERATIVE_AI_*` | `generativelanguage.googleapis.com` |
+| `GITHUB_TOKEN`, `GH_TOKEN` and `_PAT`, `_ACCESS_TOKEN` | `api.github.com`, `github.com` |
+| `RESEND_*`, `SENDGRID_*`, `POSTMARK_*`, `TWILIO_*` | their `api.` hosts |
+| `SLACK_*` | `slack.com`, `hooks.slack.com` |
+| `VERCEL_*`, `CLOUDFLARE_*`, `LINEAR_*`, `NOTION_*` | their `api.` hosts |
+| `POSTHOG_*` | `*.posthog.com` |
+| `MISTRAL_*`, `GROQ_*`, `REPLICATE_*` | their `api.` hosts |
+| `HF_*`, `HUGGINGFACE_*` | `huggingface.co` |
+
+A secret with no known host is asked about at the terminal; an empty answer leaves it behind. Uploading secrets runs the same host check as `zode secret set`.
+
+**The conversation** (`--session`). The newest Claude Code conversation for this folder, from `~/.claude/projects/`. Every secret value from the `.env` files, and anything token-shaped, is replaced with `[redacted by zode]`, and this folder's path is rewritten to the sandbox's. Claude Code then resumes it in the sandbox with no permission prompts, headless, and writes its output to `~/.zode-up.log` there. It signs in the way your workspace's [Agents](/concepts/agents) settings say.
+
+### The confirmation
+
+Nothing moves until you confirm:
+
+```text
+zode up: /Users/you/acme -> /workspace/acme in a new sandbox
+  files      214 (history included); left behind: .env, certs/dev.pem
+  secret     STRIPE_KEY -> api.stripe.com (the sandbox sees a placeholder)
+  variable   APP_ENV
+  stays      DATABASE_URL (points at this machine; the sandbox has its own services)
+  session    Claude Code conversation 3f1c9a52-... (2 secret(s) redacted)
+Move it? [y/N] y
+acme is running (default)
+copied 214 files (3.1 MB) to acme:/workspace/acme
+Claude Code carries on in acme; you can close this laptop
+  follow it: zode ssh acme -- tail -f ~/.zode-up.log
+  zode ssh acme
+  zode down   bring the work back as branch zode/acme
+```
+
+The hand-off is saved in `.git/zode-up.json` so `zode down` knows which sandbox to read.
+
+## zode down
+
+```bash
+zode down [--stop] [--no-session] [--sandbox S]
+```
+
+Run it in the same repository. It brings back:
+
+- **The work.** Anything uncommitted in the sandbox is committed there ("Work from Zode sandbox acme"), and the commits since `zode up` are fetched into a local branch `zode/<sandbox>` (a dated name if that branch exists). Your working tree and current branch are never touched.
+- **The conversation**, cloud turns included, over the local copy, with paths rewritten back. The old local copy is kept as `<id>.jsonl.before-zode-down`.
+
+```text
+branch zode/acme has the sandbox's work (6 files changed, 182 insertions(+), 40 deletions(-))
+  git switch zode/acme     or     git merge zode/acme
+conversation back: claude --resume 3f1c9a52-...
+```
+
+| Flag | Effect |
+|---|---|
+| `--stop` | Hibernate the sandbox afterwards. |
+| `--no-session` | Leave the conversation in the sandbox. |
+| `--sandbox S` | Read this sandbox instead of the one in `.git/zode-up.json`. |
+
+The sandbox must be running. Work over 1 GB is refused; push it from the sandbox instead (`zode ssh`, then `git push`).
+
+## zode bridge
+
+```bash
+zode bridge <sandbox> HOST:PORT [HOST:PORT ...]
+```
+
+Lets a sandbox reach hosts that only your machine can, such as a database on the office network or a service on your `localhost`, for as long as the command runs.
+
+```bash
+zode bridge api db.internal:5432 localhost:6379
+```
+
+```text
+zode bridge: db.internal:5432 in api reaches db.internal:5432 here
+zode bridge: laptop:6379 in api reaches localhost:6379 here
+Keep this running; Ctrl-C stops the bridge.
+```
+
+- In the sandbox, each host keeps its name (added to `/etc/hosts`). Your machine's own `localhost` is called `laptop` there.
+- It is outbound only: the CLI holds one session to the sandbox and dials the real hosts itself. Nothing listens on your machine.
+- Only the listed hosts are reachable. Up to 20 at once.
+- When the bridge stops, connections to those hosts are refused at once rather than hanging.
+- The sandbox must be running and have `python3`, which every image has.
+
+`zode up --bridge HOST:PORT` opens a bridge right after the move, and tells the resumed agent which hosts work only while your laptop is online.

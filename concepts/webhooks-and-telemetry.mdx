@@ -26,6 +26,7 @@ The 201 response includes `"secret": "whsec_..."`. It is shown once. `POST /v1/w
 | Workspace | `org.update`, `org.transfer` |
 | Spend | `breaker.tripped`, `spend.cap_reached`, `spend.daily_cap_reached`, `balance.low` |
 | Invoices | `invoice.created`, `invoice.paid`, `invoice.payment_failed` |
+| CI | `ci.selection_miss` |
 
 `GET /v1/webhooks` lists every type with `available`.
 
@@ -149,8 +150,6 @@ curl -s "https://api.zode.dev/v1/sandboxes/$ID/stats?from=2026-11-11T00:00:00Z" 
 - Process rows have `source: "guest"`: the VM reports them, so treat them as untrusted. The other tracks come from the host.
 - `stats` summarises the window: samples, average and peak CPU, peak RAM and memory pressure, network bytes, processes, OOM kills, blocked network events, AI calls and AI cost.
 
-Retention is set by your plan when a row is written: Free 7 days, Pro 30, Team 90, Enterprise 90. A deleted sandbox stays readable for up to 14 days, within that limit.
+Retention is set by your plan when a row is written: Free 7 days, Pro 30, Team 90, Enterprise 90. A deleted sandbox's rows stay readable for the same time.
 
-<Note>
-The hosts do not write to the flight recorder yet. Today `timeline` returns no entries, `stats` returns zeros, and OpenTelemetry export has nothing to send.
-</Note>
+From the terminal, [`zode logs` and `zode stats`](/cli/logs-stats) read the same data.

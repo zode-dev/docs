@@ -1,0 +1,67 @@
+---
+title: "Snapshots"
+description: "Save a sandbox's memory and disk with zode snapshot, and roll it back later."
+---
+
+A snapshot saves a sandbox's memory, running processes and disk at one moment. Restoring it rolls that same sandbox back. To start a second sandbox from the same state instead, use [`zode fork`](/cli/sandboxes#fork). Background: [Snapshots and fork](/concepts/snapshots-and-fork).
+
+```bash
+zode snapshot save <sandbox> [name]          # save memory and disk now
+zode snapshot ls [sandbox]                   # every snapshot, or one sandbox's
+zode snapshot restore <sandbox> <snapshot>   # roll the sandbox back to it
+zode snapshot rm <sandbox> <snapshot>        # delete a snapshot
+```
+
+A `<snapshot>` is its name or its `snp_` id. `zode snapshots` works too, as do the aliases `create` for `save`, `list` for `ls`, `rollback` for `restore` and `delete` for `rm`.
+
+## Save
+
+```bash
+zode snapshot save demo before-migration
+```
+
+```text
+saved before-migration of demo (memory and disk) in 1.8s
+  zode snapshot restore demo before-migration
+```
+
+Leave out the name and the API picks one, `snapshot-YYYYMMDD-HHMMSS`. A sandbox keeps up to 20 snapshots.
+
+## List
+
+```bash
+zode snapshot ls demo
+```
+
+```text
+NAME              SANDBOX  SAVED    ID
+before-migration  demo     5m ago   snp_k2vq7xwmr3tdy6ha
+```
+
+With no snapshots it prints `no snapshots yet: zode snapshot save <sandbox>`.
+
+## Restore
+
+```bash
+zode snapshot restore demo before-migration
+```
+
+```text
+demo is back at before-migration (running, saved 5m ago) in 2.3s
+```
+
+Memory, processes and disk go back to the saved moment. Anything the sandbox did after it is lost, unless you saved another snapshot first. A snapshot restores only onto the sandbox it was taken from.
+
+## Delete
+
+```bash
+zode snapshot rm demo before-migration
+```
+
+```text
+deleted before-migration of demo
+```
+
+## From an agent
+
+The [MCP server](/cli/mcp) has the same operations as `snapshot_save`, `snapshot_list` and `snapshot_restore`, so an agent can save before a risky step and roll back on its own.

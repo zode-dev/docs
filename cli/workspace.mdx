@@ -1,0 +1,281 @@
+---
+title: "Workspace settings"
+description: "The workspace, its audit log and billing, your coding agents, API keys, people, AI provider keys, webhooks, alerts, OpenTelemetry export and security groups from the zode CLI."
+---
+
+These commands do from the terminal what the console's settings pages do. Changing them needs an owner or admin unless a section says otherwise. Secret values, such as an AI provider key, a Slack URL or a collector header, are read from stdin or asked for at a prompt that does not echo. They never go on the command line.
+
+## zode workspace
+
+```bash
+zode workspace                       # name, plan, members, defaults, sandboxes running
+zode workspace set [--name N] [--display-name D] [--billing-email E] [--browser on|off] [--desktop on|off]
+```
+
+`zode org` works too. `zode workspace` prints the workspace's name and id, its plan, your role and the member count, the billing email, whether new sandboxes start with the browser and desktop on, and how many sandboxes are running against the plan's limit.
+
+| Flag | Effect |
+|---|---|
+| `--name N` | The workspace's short name (slug). |
+| `--display-name D` | The name people see. |
+| `--billing-email E` | Where invoices go. `--billing-email ""` clears it. |
+| `--browser on\|off`, `--desktop on\|off` | Whether new sandboxes start with Chrome or the desktop on. The desktop needs a plan that includes it. |
+
+`set` prints `workspace updated`. With no flag it changes nothing.
+
+## zode audit
+
+```bash
+zode audit [--actor EMAIL] [--action PREFIX] [--target ID] [--from DAY] [--to DAY] [--limit N] [--before ID] [--json | --csv]
+```
+
+The workspace's audit log, newest first. Owners and admins can read it.
+
+| Flag | Effect |
+|---|---|
+| `--actor EMAIL` | Only events by this person. |
+| `--action PREFIX` | Actions starting with this, such as `sandbox.` or `token.create`. |
+| `--target ID` | Only events about this resource. |
+| `--from DAY`, `--to DAY` | A UTC day (`YYYY-MM-DD`) or an RFC 3339 time. |
+| `--limit N` | 1 to 500. Default 50. Not with `--csv`. |
+| `--before ID` | Page back from an event id. |
+| `--json` | The events as JSON. |
+| `--csv` | Up to 50,000 rows as CSV. Team and Enterprise plans. |
+
+```text
+WHEN                 ACTOR            ACTION          OUTCOME  TARGET                    ID
+2026-11-14 09:12:03  you@example.com  sandbox.create  ok       sbx_q3vfn7tkx2mhcw4a      8812
+```
+
+When there are older events, the last line says how to read them: `older: zode audit --before 8790`.
+
+## zode billing
+
+```bash
+zode billing             # plan, this month's estimate, credit and caps
+zode billing invoices    # past invoices with their links
+```
+
+Read only, for owners, admins and the billing role. It shows the plan and any trial, the plan's limits, this month's billable usage (compute, storage, static IP) and AI spend, the invoice estimate, credit, whether a card is on file, the daily and per-sandbox caps, and the billing email. `invoices` lists each invoice's number, period, total, status and link. Change the plan, card, caps and top-ups in the console under **Billing**.
+
+## zode agent
+
+Your own coding agent settings: which agent [`zode prompt`](/cli/sandboxes#give-an-agent-a-task) runs, its model, and how it signs in. These belong to you, not the workspace. `zode agents` works too. Background: [Agents](/concepts/agents).
+
+```bash
+zode agent ls                                 # agents, defaults, keys and subscriptions
+zode agent models <agent>                     # models an agent can default to
+zode agent default <agent>                    # the agent zode prompt uses ("none" clears it)
+zode agent model <agent> <model>              # an agent's default model ("none" clears it)
+zode agent auth <agent> api-key|subscription  # how claude-code or codex signs in
+zode agent key set <provider>                 # your API key for a provider
+zode agent key rm <provider>
+zode agent sub sign-in <agent> [--sandbox S]  # sign in to your subscription in a sandbox
+zode agent sub set claude-code                # paste what claude setup-token prints
+zode agent sub set codex [--auth-file F]      # send ~/.codex/auth.json
+zode agent sub rm <agent>                     # forget the subscription
+```
+
+An `<agent>` is `claude-code`, `codex`, `opencode`, `pi` or `kimi-code`. Subscriptions are for `claude-code` (Claude) and `codex` (ChatGPT).
+
+- `key set` and `sub set claude-code` read the key or token from stdin, or ask for it without echo.
+- `sub set codex` reads `~/.codex/auth.json`, or the file in `--auth-file` (at most 64 KB). Sign in with `codex login --device-auth` first.
+- `sub sign-in` runs the agent's own sign-in in a sandbox, a throwaway one unless you name one with `--sandbox`. It prints a page to open, and for Claude asks for the code that page shows, then prints `claude-code now runs on your subscription`.
+
+Sandboxes never see these keys or tokens. [`zode ai-key`](#zode-ai-key) is the workspace's keys for the proxy, not yours.
+
+## zode token
+
+API keys for CI and scripts. Use one as `ZODE_TOKEN=... zode ls`.
+
+```bash
+zode token ls                                     # list keys (never the secret)
+zode token create <name> [--scope S] [--days N]   # make one; its secret is shown once
+zode token rm <name|tok_ id>                      # revoke one
+```
+
+| Flag | Effect |
+|---|---|
+| `--scope S` | `full` (default), `sandboxes` or `read_only`. See [scopes](/api-reference/overview). |
+| `--days N` | Expire after N days, 1 to 365. Without it the key never expires. |
+
+```bash
+zode token create github-ci --scope sandboxes --days 90
+```
+
+```text
+github-ci (sandboxes, expires 12 Feb 2027). Copy it now, it is not shown again:
+
+  zode_tok_4f1c...
+```
+
+```bash
+zode token ls
+```
+
+```text
+NAME       SCOPE      STARTS        LAST USED  EXPIRES      BY
+github-ci  sandboxes  zode_tok_4f1…  never      12 Feb 2027  you@example.com
+```
+
+`rm` revokes the key at once. If two keys share a name, it asks for the `tok_` id. `zode tokens`, `zode key` and `zode keys` work too.
+
+## zode team
+
+People in the workspace and open invites.
+
+```bash
+zode team ls                          # members and open invites
+zode team invite <email> [--role R]   # invite someone (member by default)
+zode team role <email> <role>         # change a member's role
+zode team rm <email>                  # remove a member, or revoke an invite
+```
+
+Roles are `owner`, `admin`, `billing` and `member`.
+
+```text
+EMAIL              ROLE    STATE
+you@example.com    owner   active just now
+sam@example.com    member  active 3d ago
+kim@example.com    admin   invited, expires 21 Nov
+```
+
+## zode ai-key
+
+Your own AI provider keys, which the AI proxy adds to sandboxes' AI calls. Sandboxes never see them. See [Agents](/concepts/agents).
+
+```bash
+zode ai-key ls                          # keys per provider, in failover order
+zode ai-key add <provider> [--label L]  # the key is read from stdin or asked for
+zode ai-key rm <id>
+```
+
+```bash
+printf %s "$ANTHROPIC_API_KEY" | zode ai-key add anthropic --label main
+```
+
+```text
+added anthropic key x9Qa (aik_...)
+```
+
+`zode ai-key ls` prints `PROVIDER`, the failover position, label, the last four characters of the key, and its id. To change the failover order, use the console or `POST /v1/proxying/keys/order`.
+
+## zode webhook
+
+Workspace events sent to your own URL, signed. See [Webhooks](/concepts/webhooks-and-telemetry).
+
+```bash
+zode webhook ls                                       # list endpoints
+zode webhook add <url> --events a,b [--description D] # its signing secret is shown once
+zode webhook events                                   # the event types
+zode webhook test <id>                                # send a test event
+zode webhook deliveries <id>                          # recent deliveries
+zode webhook on|off <id>                              # enable or pause it
+zode webhook rotate <id>                              # new signing secret, shown once
+zode webhook rm <id>
+```
+
+```bash
+zode webhook add https://example.com/zode --events sandbox.oom,spend.cap_reached
+```
+
+```text
+added https://example.com/zode (whk_...)
+Signing secret, shown once:
+
+  whsec_...
+```
+
+`zode webhook ls` shows each endpoint's URL, events, state (`on`, `off` with the reason, or `failing since ...`) and id. `zode webhook events` marks types that are not sent yet with `(not sent yet)`. `zode webhooks` works too.
+
+## zode alert
+
+Alerts to email, Slack, Discord, Telegram or your own webhook. A channel is where a message goes; a rule sends one event type to channels. See [Alerts](/concepts/alerts).
+
+```bash
+zode alert ls                                     # channels and rules
+zode alert events                                 # the event types
+zode alert channel add email <name> [--to a@x,b@y] [--members managers|all]
+zode alert channel add slack|discord|webhook <name> [--url U]
+zode alert channel add telegram <name> --chat-id ID
+zode alert channel test <id>                      # send a test message
+zode alert channel rm <id>
+zode alert rule add <event> --channel ID[,ID]     # send an event to channels
+zode alert rule on|off <id>
+zode alert rule rm <id>
+```
+
+A Slack, Discord or webhook URL left out of `--url` is read from stdin or asked for, and so is a Telegram bot token. A `webhook` channel prints its signing secret once.
+
+```bash
+zode alert channel add slack ops
+zode alert rule add sandbox.oom --channel ach_...
+```
+
+```text
+slack URL (not shown):
+added slack channel ops (ach_...)
+  zode alert channel test ach_...
+sandbox.oom now goes to 1 channel(s) (arl_...)
+```
+
+`zode alert events` marks critical types with `(critical)`. `zode alerts` works too, and `--channels` for `--channel`.
+
+## zode otel
+
+Export sandbox metrics, traces and logs to your OpenTelemetry collector. See [OpenTelemetry](/concepts/webhooks-and-telemetry).
+
+```bash
+zode otel                                     # show the export
+zode otel set --endpoint URL [--protocol http|grpc] [--header NAME ...]
+zode otel on|off                              # start or pause it
+zode otel test                                # send a test record
+zode otel rm                                  # remove the export
+```
+
+Each `--header NAME` asks for that header's value, one by one, or reads it from stdin.
+
+```bash
+zode otel set --endpoint https://otlp.example.com --header Authorization
+zode otel test
+zode otel on
+```
+
+```text
+header Authorization (not shown):
+saved: zode otel test, then zode otel on
+the collector took the test record in 142 ms
+export is on
+```
+
+`zode otel` with no subcommand shows the endpoint, protocol, state, header names, the last export and the last error.
+
+## zode sg
+
+Security groups: what a sandbox may reach and be reached from. Read [Networking](/concepts/networking) first: security groups are not switched on in `eu-central` yet, so today you can list them but changes are refused with `security_groups_unavailable`.
+
+```bash
+zode sg ls                                    # list groups
+zode sg show <group>                          # its rules
+zode sg create <name> [--env ENV] [--description D] [--in RULE ...] [--out RULE ...]
+zode sg rules <group> [--in RULE ...] [--out RULE ...]   # replace its rules
+zode sg rm <group>
+zode sg attach <sandbox> <group>[,<group>]    # the sandbox's groups (replaces them)
+```
+
+A `<group>` is its name or `sg_` id. Each environment has its own groups, so when two share a name, use the id.
+
+A RULE is `PROTOCOL[:PORTS]@TARGET`:
+
+| Part | Values |
+|---|---|
+| PROTOCOL | `tcp`, `udp`, `icmp` or `all` |
+| PORTS | a port (`443`), a range (`8000-8100`) or `all`. Default `all`. |
+| TARGET | `internet`, `mesh`, a CIDR (`10.0.0.0/8`; a bare address becomes `/32` or `/128`), `host:NAME` (`host:api.stripe.com`, outbound only) or `group:sg_...` |
+
+```bash
+zode sg create web --in tcp:3000@mesh --out tcp:443@internet --out udp:53@host:dns.google
+zode sg attach api web
+```
+
+`zode sg rules` replaces only the directions you pass. `zode security-group` and `zode security-groups` work too.

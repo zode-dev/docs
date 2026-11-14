@@ -28,6 +28,11 @@ GROUPS = [
         ("POST", "/v1/sandboxes/{id}/start", "Start a sandbox"),
         ("GET", "/v1/concurrency", "Running sandboxes"),
     ]),
+    ("Port previews", [
+        ("GET", "/v1/sandboxes/{id}/ports", "List open ports"),
+        ("POST", "/v1/sandboxes/{id}/ports", "Open a port"),
+        ("DELETE", "/v1/sandboxes/{id}/ports/{port}", "Close a port"),
+    ]),
     ("Commands", [
         ("POST", "/v1/sandboxes/{id}/exec", "Run a command"),
         ("GET", "/v1/sandboxes/{id}/attach", "Open a session (WebSocket)"),
@@ -64,6 +69,19 @@ GROUPS = [
         ("PUT", "/v1/environments/{id}/secrets/{name}", "Set a secret"),
         ("DELETE", "/v1/environments/{id}/secrets/{name}", "Delete a secret"),
     ]),
+    ("Networking", [
+        ("GET", "/v1/security-groups", "List security groups"),
+        ("POST", "/v1/security-groups", "Create a security group"),
+        ("GET", "/v1/security-groups/{id}", "Get a security group"),
+        ("PATCH", "/v1/security-groups/{id}", "Change a security group"),
+        ("DELETE", "/v1/security-groups/{id}", "Delete a security group"),
+        ("GET", "/v1/sandboxes/{id}/security-groups", "Get a sandbox's groups"),
+        ("PUT", "/v1/sandboxes/{id}/security-groups", "Set a sandbox's groups"),
+        ("GET", "/v1/environments/{id}/network", "Get private networking"),
+        ("PUT", "/v1/environments/{id}/network", "Set the private range"),
+        ("PUT", "/v1/environments/{id}/mesh", "Connect a mesh"),
+        ("DELETE", "/v1/environments/{id}/mesh", "Disconnect the mesh"),
+    ]),
     ("Flight recorder", [
         ("GET", "/v1/sandboxes/{id}/timeline", "Read the timeline"),
         ("GET", "/v1/sandboxes/{id}/stats", "Summarize a window"),
@@ -84,6 +102,7 @@ GROUPS = [
         ("DELETE", "/v1/proxying/keys/{key}", "Remove a workspace key"),
         ("POST", "/v1/proxying/keys/order", "Set failover order"),
         ("PATCH", "/v1/proxying/settings", "Change breaker and caps"),
+        ("POST", "/v1/proxying/loop/resume", "Resume paused agents"),
     ]),
     ("Webhooks", [
         ("GET", "/v1/webhooks", "List endpoints"),
@@ -172,6 +191,10 @@ def clean(text):
     text = text.replace(" (an older zoded)", "")
     # One of the sizes is named `default`, and it is not what an empty body gets.
     text = text.replace("An empty body creates a default sandbox.", "An empty body creates a `small` sandbox.")
+    # Pointers into the zoded task graph and PRD mean nothing to a reader.
+    text = re.sub(r"\s*\((?:task|PRD|REQ)[- ][^)]*\)", "", text)
+    text = re.sub(r"\s*Task \d+,\s*\"[^\"]*\"\.?", "", text)
+    text = re.sub(r"\s*\(PRD REQ-\d+\)", "", text)
     text = re.sub(r"\s*\(zoded[^)]*\)", "", text)
     text = text.replace("zoded", "the control plane")
     return text

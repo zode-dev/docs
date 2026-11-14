@@ -1,0 +1,105 @@
+---
+title: "Port previews"
+description: "Share a server running in a sandbox at an https URL on zode.run with zode port: private to the workspace, behind a password, or public."
+---
+
+A server listening on a port in a sandbox, such as a dev server, an API or a docs site, can get its own https URL:
+
+```text
+https://3000-k7f2qdx4mbn2w.zode.run
+```
+
+The label is the port, a hyphen and 13 random characters, so nobody can guess the URL. Previews live on `zode.run`, a domain kept apart from `zode.dev`, so code in a preview cannot set cookies for the console or the API.
+
+## Open a port
+
+```bash
+zode port <sandbox> <port> [--public | --password]
+```
+
+```bash
+zode port web 3000
+```
+
+```text
+https://3000-k7f2qdx4mbn2w.zode.run
+  port 3000 of web, open to people in this workspace
+```
+
+| Flag | Who can open the URL |
+|---|---|
+| none | People in this workspace. See [Private](#private). |
+| `--password` | Anyone with the URL and the password. The password is printed once. |
+| `--public` | Anyone with the URL. |
+
+`--public` and `--password` cannot be combined. The port is 1 to 65535. Flags can go before or after the sandbox and port.
+
+```bash
+zode port web 3000 --password
+```
+
+```text
+https://3000-r5nh2ztqawkcp.zode.run
+  port 3000 of web, open to anyone with the URL and the password
+  password (shown once): m3qx7vd2hkt4wpa6zcny
+```
+
+Opening a port that is already open changes who may see it **and** gives it a new URL. The old URL stops working, so a link you shared under one access mode never carries over to another.
+
+If the sandbox is not running, the URL is still made, and the CLI adds a line such as `web is stopped: zode start web`.
+
+## List and close
+
+```bash
+zode port ls web
+```
+
+```text
+PORT  URL                                   WHO
+3000  https://3000-k7f2qdx4mbn2w.zode.run   people in this workspace
+5173  https://5173-artc3vdw2kq6j.zode.run   anyone with the URL
+```
+
+```bash
+zode port rm web 3000
+```
+
+```text
+closed port 3000 of web; its URL stops working now
+```
+
+`zode ports` works too, and `close` or `delete` for `rm`. `zode port help` prints the usage.
+
+## Access
+
+### Private
+
+The default. Opening the URL sends the browser to the console, which signs you in if needed and checks that you are a member of the sandbox's workspace. It then sends you back with a ticket for that one preview, kept in a cookie on the preview's own host for 12 hours. API keys cannot open a private preview.
+
+### Password
+
+The browser asks for a user name and password (HTTP basic auth). Any user name works. Zode makes the password, stores only a hash of it, and shows it once. Lost it? Open the port again with `--password` for a new URL and password.
+
+### Public
+
+Anyone with the URL gets through. The URL is hard to guess, but it is not a secret once you share it.
+
+## What the app sees
+
+- Requests arrive with `Host: localhost:<port>`, so dev servers that refuse unknown hosts (Vite, webpack) answer. The real host, scheme and client address are in `X-Forwarded-Host`, `X-Forwarded-Proto` and `X-Forwarded-For`.
+- WebSockets and streamed responses pass through, so hot reload works.
+- The visitor's `Authorization` header (the password is for the preview, not your app) and Zode's own `zode_preview` cookie are removed before the request reaches the sandbox.
+- A `Domain` attribute on a cookie your app sets is removed, so its cookies stay on that preview's host.
+- Zode adds none of its own security headers to your app's responses.
+
+## Limits and states
+
+- At most 10 open ports per sandbox (409 `limit_reached`).
+- A stopped sandbox is not woken by a visit. The URL answers with a short page saying the sandbox is stopped and that its owner can wake it with `zode start` or from the console.
+- Deleting a sandbox closes its previews.
+- `https://zode.run` itself shows what a preview address is made of.
+
+## From an agent or the API
+
+- MCP: the `port_open` tool takes `sandbox`, `port` and `access` (`private`, `public` or `password`) and returns the URL, and the password once. See [MCP server](/cli/mcp).
+- API: `POST /v1/sandboxes/{id}/ports` with `{"port": 3000, "access": "private"}`, `GET /v1/sandboxes/{id}/ports` and `DELETE /v1/sandboxes/{id}/ports/{port}`. See the [API reference](/api-reference/overview).

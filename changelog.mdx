@@ -3,6 +3,37 @@ title: "Changelog"
 description: "User-facing changes to Zode: the API, CLI, SDK, console and sandboxes, newest first."
 ---
 
+<Update label="2026-11-14" description="Port previews, zode up and down, and the CLI covers the console">
+**Port previews**
+
+- `zode port <sandbox> <port>` serves a port at `https://<port>-<random>.zode.run`: private to the workspace by default, `--password` for a password shown once, or `--public`. WebSockets work, so dev servers reload live. Up to 10 per sandbox. See [Port previews](/cli/ports).
+- The same in the API (`POST`, `GET /v1/sandboxes/{id}/ports`, `DELETE /v1/sandboxes/{id}/ports/{port}`) and in MCP (`port_open`).
+
+**Move local work**
+
+- `zode up` copies the repository you are in to a sandbox, uncommitted changes and history included, turns `.env` values into vault secrets and variables after you confirm them, and with `--session` carries on your Claude Code conversation there. `zode down` brings the work back as the branch `zode/<sandbox>` without touching your working tree. See [Move local work](/cli/up-down).
+- `zode bridge <sandbox> HOST:PORT` lets a sandbox reach hosts only your machine can, for as long as it runs.
+
+**CLI**
+
+- New: `zode snapshot`, `zode secret`, `zode env`, `zode token`, `zode logs`, `zode stats` and `zode build` (short for `zode image build`).
+- New, for workspace settings: `zode workspace`, `zode audit`, `zode billing`, `zode agent`, `zode webhook`, `zode alert`, `zode otel`, `zode sg`, `zode ai-key` and `zode team`. See [Workspace settings](/cli/workspace).
+- New: `zode ci` for CI jobs, costs, the monthly cap, test selection and slow or flaky tests. See [zode ci](/cli/ci).
+- New: `zode env network` and `zode env mesh` for an environment's private network.
+- `zode secret set` reads the value from stdin or a prompt that does not echo, and checks the signed release of every host in your workspace's regions before it uploads. It refuses when a host does not verify, unless you pass `--unverified`.
+- Every command and flag is listed on the new [CLI reference](/cli/reference).
+
+**MCP**
+
+- New tools: `snapshot_save`, `snapshot_list`, `snapshot_restore`, `port_open`, `sandbox_logs` and `sandbox_stats`. See [MCP server](/cli/mcp).
+
+**Docs**
+
+- The flight recorder, AI spend in usage and OpenTelemetry export carry data now; the notes saying hosts did not write to the recorder are gone.
+- The loop breaker's `loop.mode` (`off`, `alert`, `pause`) and `POST /v1/proxying/loop/resume` are documented, as is the `ci.selection_miss` event.
+- [Networking](/concepts/networking) describes security groups and private networking. Neither is switched on in `eu-central` yet.
+</Update>
+
 <Update label="2026-11-13" description="Free credit with no card; console welcome">
 **Billing**
 

@@ -1,0 +1,68 @@
+---
+title: "zode ci"
+description: "Read CI jobs, costs and slow or flaky tests, and set the monthly CI cap and test selection, from the zode CLI."
+---
+
+`zode ci` reads and changes [Zode CI](/concepts/ci) for the workspace: GitHub Actions jobs that run on Zode runners. Linking GitHub happens in the console under **CI**.
+
+```bash
+zode ci                                   # setup, this month's spend, cap, standby, limit
+zode ci jobs [--limit N]                  # recent jobs (default 20, at most 200)
+zode ci job <id>                          # one job: phases, steps, cost
+zode ci costs [--month YYYY-MM]           # a month's CI cost by repository
+zode ci cap <USD|none>                    # monthly CI spend cap (0 stops CI jobs)
+zode ci selection                         # test selection mode per repository
+zode ci selection <owner/repo> [--mode off|shadow|enforce] [--policy every|sample|default_branch]
+zode ci tests slowest|flaky --repo owner/name [--days N] [--limit N]
+```
+
+Every role can read. Setting the cap and test selection needs an owner or admin.
+
+## Setup and jobs
+
+`zode ci` prints the linked GitHub account and repositories, the `runs-on` labels, what CI has spent since the start of the month against the cap, the CI machines running against your plan's limit and the jobs waiting for one, and the standby runners.
+
+```bash
+zode ci jobs --limit 5
+```
+
+The table has `REPO`, `BRANCH`, `JOB` (workflow / job), `STATE`, `QUEUE` (time waiting for a runner), `TOTAL`, `COST`, `WHEN` and `ID`. With no jobs it prints `no CI jobs yet`.
+
+`zode ci job <id>` shows one job: its size, the runner and sandbox, how it started (for example from a [warm snapshot](/ci/warm-snapshots)), time in queue, setup and steps, its cost, links to GitHub and the console, and each step with its state and time.
+
+## Costs and the cap
+
+```bash
+zode ci costs --month 2026-11
+```
+
+The first line is the month's total with compute and storage, and standby time, which is not billed. Then one row per repository: `JOBS`, `RUNNERS`, `SHARDS`, `BACKGROUND`, `STORAGE` and `TOTAL`.
+
+```bash
+zode ci cap 50       # monthly CI cap is $50.00
+zode ci cap 0        # no CI jobs run this month
+zode ci cap none     # no monthly CI cap
+```
+
+The cap is in dollars, such as `50` or `12.50`.
+
+## Test selection
+
+`zode ci selection` lists each repository's [test selection](/ci/selection) mode, background policy, clean Shadow runs, misses and whether it can go to Enforce. Repositories not listed run in the default mode, which the first line names.
+
+```bash
+zode ci selection acme/web --mode shadow --policy every
+```
+
+```text
+acme/web updated
+```
+
+## Slow and flaky tests
+
+```bash
+zode ci tests slowest --repo acme/web --days 14 --limit 20
+zode ci tests flaky --repo acme/web
+```
+
+`slowest` lists tests by median time: `TEST`, `FILE`, `RUNS`, `MEDIAN`, `MAX`. `flaky` lists tests that passed and failed on the same commit: `TEST`, `FILE`, `COMMITS`, `PASSES`, `FAILS`, `LAST`. These read results that [`zode-ci test`](/ci/zode-ci-test) reported.

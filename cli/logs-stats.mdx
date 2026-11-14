@@ -1,0 +1,73 @@
+---
+title: "Logs and stats"
+description: "Read a sandbox's flight recorder from the terminal: what ran, which AI calls it made, what it reached on the network, and how hard it worked."
+---
+
+Every sandbox has a flight recorder. `zode logs` prints its entries and `zode stats` sums up a window. Both read the same data as the console's **Activity** and **Metrics** tabs and the [timeline API](/concepts/webhooks-and-telemetry#flight-recorder). How long entries are kept depends on your plan: 7, 30 or 90 days.
+
+## zode logs
+
+```bash
+zode logs <sandbox> [--since 1h] [--tracks process,ai,net] [-f] [--json]
+```
+
+| Flag | Effect |
+|---|---|
+| `--since D` | How far back: a length such as `30m`, `2h` or `7d`, or a time such as `2026-11-14T09:00:00Z`. Default `1h`. |
+| `--tracks T` | Any of `process`, `ai`, `net` and `metrics`, comma separated. Default `process,ai,net`. |
+| `-f`, `--follow` | Keep printing new entries, checking every 2 seconds, until Ctrl-C. No entry is printed twice. |
+| `--json` | One JSON entry per line, as the API returns it. |
+
+Put the flags after the sandbox name. `zode log` works too.
+
+```bash
+zode logs demo --since 30m
+```
+
+```text
+Nov 14 09:12:03  process  npm test  [exit 0 after 41.2s, pid 812, 612 MB]  (reported by the sandbox)
+Nov 14 09:12:05  net      passthrough registry.npmjs.org
+Nov 14 09:12:31  net      swap api.stripe.com  with STRIPE_KEY
+Nov 14 09:12:40  ai       anthropic claude-sonnet-4-5  18210 in (16000 cached), 950 out  $0.021345  2810 ms  200
+Nov 14 09:13:02  net      blocked pastebin.com: secret_not_allowed_for_host
+Nov 14 09:13:10  process  python3 train.py  [killed, out of memory, after 2m14s, pid 977, 3980 MB]  (reported by the sandbox)
+```
+
+What each track shows:
+
+- **process**: the command, how it ended (exit code and run time, `running`, or killed for running out of memory), its pid and peak memory. A sealed command shows as `[sealed]`.
+- **ai**: provider and model, input tokens (and how many were cached), output tokens, cost, latency and HTTP status.
+- **net**: what the egress proxy did with a web request (`passthrough`, `intercept`, `swap` when it swapped a secret in, `tls_failed`, `upstream_error`), the host, and `with NAME` for a swap. Blocked requests show `blocked`, the host and the reason.
+- **metrics**: one line per second with CPU, memory and network bytes. Off by default because it is long.
+
+Lines the sandbox reported about itself, rather than the host, end with `(reported by the sandbox)`. Process lines come from the sandbox today. Treat them as untrusted.
+
+With nothing in the window, it prints `nothing recorded for demo since Nov 14 08:43 (tracks: process,ai,net)`.
+
+## zode stats
+
+```bash
+zode stats <sandbox> [--since 1h] [--json]
+```
+
+`--since` works as for `zode logs`. `--json` prints the API's answer as is.
+
+```bash
+zode stats demo --since 7d
+```
+
+```text
+demo since Nov 7 09:20
+  CPU        12.4% on average, 100% at peak
+  Memory     3120 MB at peak, of 4096 MB
+             waited on memory up to 4.2% of the time
+  Network    1.4 GB in, 88.3 MB out, 3 blocked
+  Processes  1204, 1 killed for running out of memory
+  AI calls   212, $3.418220
+```
+
+Lines with nothing to say are left out. A window with no samples prints `nothing recorded in this window (a stopped sandbox records nothing)`.
+
+## From an agent
+
+The [MCP server](/cli/mcp) has `sandbox_logs` (the same lines, at most the newest 400) and `sandbox_stats` (the same numbers as JSON).

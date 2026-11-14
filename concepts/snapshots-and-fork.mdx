@@ -10,7 +10,7 @@ Zode has two ways to save a sandbox's state, and they answer different questions
 | What you get | A new running sandbox | A saved point in the same sandbox |
 | Includes | Disk and memory | Disk and memory |
 | Use it to | Try several things from one state, in parallel | Roll back after something goes wrong |
-| CLI | `zode fork` | Not in the CLI |
+| CLI | `zode fork` | `zode snapshot save`, `zode snapshot restore` |
 | SDK | `sbx.fork()` | `sbx.snapshot()`, `sbx.restore()` |
 | API | `POST /v1/sandboxes/{id}/fork` | `POST /v1/snapshots`, `POST /v1/snapshots/{id}/restore` |
 
@@ -54,9 +54,20 @@ Limits:
 
 ## Snapshots
 
-A snapshot saves a sandbox's disk and memory at one instant, under a name. Restoring it rolls that same sandbox back to the saved point. Snapshots are in the API, the TypeScript SDK and the console (**Snapshots**, and a **Snapshots** tab on each sandbox). The CLI has no snapshot command.
+A snapshot saves a sandbox's disk and memory at one instant, under a name. Restoring it rolls that same sandbox back to the saved point. Snapshots are in the CLI ([`zode snapshot`](/cli/snapshots)), the MCP server, the API, the TypeScript SDK and the console (**Snapshots**, and a **Snapshots** tab on each sandbox).
 
 <CodeGroup>
+
+```bash CLI
+zode snapshot save demo before-migration
+zode exec demo -- npm run migrate
+
+# Undo: the sandbox goes back to the snapshot, memory and disk
+zode snapshot restore demo before-migration
+
+zode snapshot ls demo
+zode snapshot rm demo before-migration
+```
 
 ```ts TypeScript
 const snap = await sbx.snapshot("before-migration");

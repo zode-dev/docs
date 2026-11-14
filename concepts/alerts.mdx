@@ -91,10 +91,11 @@ curl -s https://api.zode.dev/v1/alerts/rules \
 | `member.joined`, `member.left`, `member.removed`, `member.role_changed` | no | membership changes |
 | `api_key.created` | no | someone created an API key |
 | `workspace.transferred` | no | ownership was transferred |
+| `ci.selection_miss` | yes | CI test selection skipped a test that then failed in the background full run, and the repository went back to Shadow |
 
 `GET /v1/alerts` returns this list with each type's `critical` flag and `source`.
 
-Hosts run the loop breaker in report mode today, so a `breaker.tripped` alert reads "Loop breaker flagged a possible loop in …" and adds "Nothing was paused: the agent keeps running". Only a host that enforces the breaker sends "Loop breaker paused the agent in …".
+A `breaker.tripped` alert follows the workspace's loop breaker mode (see [Agents](/concepts/agents#loop-breaker-and-caps)). In `alert` mode it reads "Loop breaker flagged a possible loop in …" and adds "Nothing was paused: the agent keeps running". In `pause` mode it reads "Loop breaker paused the agent in …".
 
 Each rule sends at most once per event per channel, so a repeated event sends nothing new.
 

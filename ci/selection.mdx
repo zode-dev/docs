@@ -39,6 +39,10 @@ The default branch always runs the full suite, in every mode.
 
 Skipping a test does not mean never running it. When the selected tests pass, Zode takes a disk copy of the job's machine. Once GitHub has the job's result, that copy runs the skipped tests as the step's user, without the job token, the runner's registration or the checkout credentials. A failure there never changes the job's result; it is a miss (below).
 
+<Warning>
+Since 13 Nov 2026, about 21:15 UTC, Zode's nodes cannot make that disk copy, so an Enforce run gets no background full run ("this job's node cannot make disk forks"). No repository is in Enforce today. Until every node has the fix, keep repositories in Shadow.
+</Warning>
+
 Which runs get one is set per repository with `background_policy`:
 
 | Policy | Background run |

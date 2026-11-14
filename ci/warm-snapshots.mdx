@@ -5,6 +5,10 @@ description: "What a warm snapshot keeps, which jobs may write it, which may rea
 
 A green job on the default branch leaves its caches behind for the next job with the same key: repository, workflow, job name (with its matrix values), runner size and the image the runner booted.
 
+<Note>
+Since 13 Nov 2026, about 21:15 UTC, runners on Zode's nodes have not received warm disks. Each runner starts clean, and the job's reason says "warm disks are not hotplugged into jailed VMs yet". A tighter VM jail went on every node at that time, and attaching a disk to a jailed machine was not built yet. The fix is rolling out node by node. This note goes away when every node has it.
+</Note>
+
 ## What is kept
 
 Not the whole machine. A runner gets a second disk laid over `/home/runner` (the checkout, `~/.cache`, `~/.npm`, `~/go`, `~/.m2` and the rest of home), `/root` and `/opt/hostedtoolcache`, and Docker's and containerd's state move onto it. Only that disk is snapshotted. Packages installed with `apt` and anything else on the root disk start from the image every time.

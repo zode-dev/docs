@@ -9,6 +9,10 @@ description: "Split one test step across copies of the job's machine, with no ma
 
 `--shards <n>` or `--shards auto` splits a Jest, Vitest, pytest or `go test` suite across copies of the job's own machine, inside the one GitHub step. The workflow has no matrix and the job stays one job.
 
+<Note>
+Since 13 Nov 2026, about 21:15 UTC, Zode's nodes refuse to copy a job's machine (`disk_fork_unavailable`), so `zode-ci test --shards` runs the suite as one shard on the job's machine. The fix is rolling out node by node. This note goes away when every node has it.
+</Note>
+
 ## How it works
 
 1. `zode-ci` lists the test files the way the runner would and asks Zode for a split. Each file is weighed by its median recorded time over 14 days; files with no history get the median of those that have one. Files go longest first to the shard with the least time.

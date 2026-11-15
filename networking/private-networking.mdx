@@ -49,9 +49,11 @@ NetBird routing peers only forward traffic from NetBird addresses, so a NetBird 
 A sandbox also needs a [security group](/concepts/networking#security-groups) that lets the traffic in. The environment's `default` group allows outbound to the mesh but inbound only from other sandboxes in `default`, so add an inbound rule for your mesh:
 
 ```bash
-zode sg create from-office --env staging --in tcp:22@mesh --in tcp:5432@mesh --out all@internet --out all@mesh
+zode sg create from-office --env staging --in icmp@mesh --in tcp:22@mesh --in tcp:5432@mesh --out all@internet --out all@mesh
 zode sg attach api from-office
 ```
+
+`icmp@mesh` lets `ping` through; leave it out if you only need the ports.
 
 ## DNS
 

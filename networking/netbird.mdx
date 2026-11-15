@@ -1,0 +1,81 @@
+---
+title: "NetBird"
+description: "Join a Zode environment to NetBird cloud or your self-hosted NetBird with a setup key, and let Zode add the routes with an API token."
+---
+
+Each Zode host that runs the environment's sandboxes joins your NetBird network as a peer named `zode-<environment>-<host>`. It is the routing peer for that host's slice of the environment's range. Read [How private networking works](/networking/private-networking) first.
+
+<Note>
+NetBird routing peers only forward traffic from NetBird addresses, so your peers see a sandbox's traffic coming from its router's NetBird address, not from the sandbox's private IP. Write your NetBird policies for the routers' group. Traffic the other way, from your peers to a sandbox, keeps the addresses on both ends.
+</Note>
+
+## 1. A group for Zode's routers
+
+Under **Access Control > Groups**, create a group such as `zode-routers`. The setup key below puts every router in it, so one policy covers every host.
+
+## 2. Policies
+
+Under **Access Control > Policies**, allow the routers to reach what sandboxes need, for example:
+
+| Source | Destination | Protocol and ports |
+| --- | --- | --- |
+| `zode-routers` | `databases` (or a network resource) | TCP 5432 |
+| `engineering` | `zode-routers` | TCP 22, 3000 |
+
+The first lets sandboxes reach your database. The second lets your engineers reach sandboxes through the routes in step 4. NetBird drops anything no policy allows, so a missing policy is the usual reason a connection hangs.
+
+## 3. A setup key
+
+Under **Setup Keys**, create a key that is **reusable**, with **auto-assigned group** `zode-routers`. Making it **ephemeral** is optional: NetBird then removes a router's peer after it has been offline for a while, which keeps your peer list tidy.
+
+If **peer approval** is on for your account, approve each `zode-<environment>-<host>` peer when it first appears, or a router stays offline.
+
+## 4. An API token, so Zode adds the routes
+
+Your peers reach a sandbox through a NetBird network route for its host's slice, with that host's router as the routing peer. Give Zode a token and it adds one route per host as routers come up, without masquerade and distributed to `All`, and removes them when you disconnect.
+
+Create a **service user** with the Network admin or Admin role under **Team > Service Users**, and a personal access token for it. Without a token, `zode env network` lists each host's slice and router, and you add the routes by hand under **Network Routes**.
+
+## 5. Connect
+
+<Tabs>
+  <Tab title="NetBird cloud">
+    ```bash
+    zode env mesh staging netbird --api-token
+    # Setup key: (asked for, not shown)
+    # API token: (asked for, not shown)
+    ```
+  </Tab>
+  <Tab title="Self-hosted">
+    ```bash
+    zode env mesh staging netbird --control-url https://netbird.example.com:33073 --api-token
+    ```
+
+    `--control-url` is your management URL, as `netbird up --management-url` takes it. It must be `https://` and reachable from the internet.
+  </Tab>
+</Tabs>
+
+Leave out `--api-token` to add the routes yourself.
+
+## 6. Check it
+
+```bash
+zode env network staging
+```
+
+Each host's router shows `ONLINE`, and `ROUTES` lists what your policies give it. Then try both directions:
+
+```bash
+zode exec api -- 'curl -s -m 5 http://10.90.15.233:8080/ || echo blocked'
+ping 10.77.3.2     # a sandbox's ZODE_PRIVATE_IP, from a peer in "engineering"
+```
+
+For NetBird DNS names, add your DNS domain: `zode env network staging --domains netbird.cloud`. Reaching a sandbox also needs a [security group](/networking/private-networking#traffic-each-way) with an inbound `@mesh` rule.
+
+## Disconnect
+
+```bash
+zode env mesh staging off
+```
+
+Every router logs out, its state is wiped, and the routes Zode made are removed. Delete the setup key, the service user's token and the group when you no longer need them.

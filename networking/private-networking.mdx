@@ -1,0 +1,92 @@
+---
+title: "How private networking works"
+description: "Join an environment to your Tailscale, Headscale or NetBird network: what runs where, which addresses your mesh sees, and how traffic flows each way."
+---
+
+Private networking joins one [environment](/concepts/environments-and-secrets) to your own mesh. Its sandboxes can then reach what your mesh reaches (a database behind a subnet router, an internal API, a staging box), and your machines can reach the sandboxes by a private IP. Your mesh's own access rules decide who reaches what, as they do for any other device.
+
+Pick your mesh for the setup steps:
+
+<CardGroup cols={3}>
+  <Card title="Tailscale" href="/networking/tailscale">An OAuth client or a tagged auth key, and two lines in your tailnet policy.</Card>
+  <Card title="Headscale" href="/networking/headscale">The same, against your own Headscale server.</Card>
+  <Card title="NetBird" href="/networking/netbird">A setup key, and an API token so Zode adds the routes itself.</Card>
+</CardGroup>
+
+## What runs where
+
+- **A router per host.** Each Zode host that runs sandboxes of the environment runs one mesh client for it, in its own network namespace on the host. It joins your mesh as a device named `zode-<environment>-<host>`.
+- **Your credential stays on the router.** The auth key, OAuth client or setup key is written once, sealed, and never returned by the API. It never enters a sandbox, so nothing running in one can read it or join your mesh with it.
+- **Sandboxes don't run a mesh client.** A sandbox sends mesh traffic to its host's router. Nothing is installed in the image, and forks and snapshots keep working as before.
+
+## Addresses
+
+- The environment has a **private range**, an IPv4 `/16` you choose (default `10.77.0.0/16`). Zode refuses a range that overlaps its own or your mesh's (including `100.64.0.0/10`, which Tailscale and NetBird use).
+- Each host gets a **`/24` slice** of that range the first time the environment runs there, so one host holds up to 254 of the environment's sandboxes.
+- Each sandbox gets a **private IP** from its host's slice. It is kept across stop and start; a fork or a restored snapshot gets its own.
+- Inside the VM, a sandbox still sees itself as `172.16.0.2`. Zode translates on the host, which is what keeps forks cheap. A program that needs its mesh address reads **`ZODE_PRIVATE_IP`**, set in every `zode exec` and session:
+
+```bash
+zode exec api -- 'echo $ZODE_PRIVATE_IP'
+# 10.77.3.2
+```
+
+The console's sandbox **Network** tab and `GET /v1/sandboxes/{id}/security-groups` (`private_ip`) show it too.
+
+## Traffic each way
+
+**Sandbox to your mesh.** A sandbox reaches the routes your mesh hands its router: other devices, and subnets behind your subnet routers. Which address your mesh sees depends on the mesh:
+
+| Mesh | Your mesh sees the sandbox as | So your rules name |
+| --- | --- | --- |
+| Tailscale, Headscale | Its own private IP (`10.77.3.2`) | the environment's range, or `tag:zode` |
+| NetBird | Its router's NetBird address | the group the setup key puts routers in |
+
+NetBird routing peers only forward traffic from NetBird addresses, so a NetBird router sends its sandboxes' traffic as its own peer address. Tailscale subnet routes carry the sandbox's real address, so your ACLs can tell sandboxes apart.
+
+**Your mesh to a sandbox.** Each router announces its host's slice as a route, so your machines reach a sandbox at its private IP. The route has to be approved on your side: by `autoApprovers` on Tailscale and Headscale, or as a NetBird network route, which Zode creates when you give it an API token. Each mesh's page shows how.
+
+A sandbox also needs a [security group](/concepts/networking#security-groups) that lets the traffic in. The environment's `default` group allows outbound to the mesh but inbound only from other sandboxes in `default`, so add an inbound rule for your mesh:
+
+```bash
+zode sg create from-office --env staging --in tcp:22@mesh --in tcp:5432@mesh --out all@internet --out all@mesh
+zode sg attach api from-office
+```
+
+## DNS
+
+Names under the domains you list resolve through your mesh; everything else resolves as before. List your MagicDNS suffix, your NetBird DNS domain, or internal zones such as `internal.acme.com`:
+
+```bash
+zode env network staging --domains tail1234.ts.net,internal.acme.com
+```
+
+[Host rules](/concepts/networking#security-groups) in a security group use the same resolver, so `tcp:5432@host:db.internal.acme.com` works for a name your mesh resolves.
+
+## Connect, check, disconnect
+
+```bash
+zode env network staging --cidr 10.77.0.0/16       # optional: pick the range first
+zode env mesh staging tailscale --oauth-client-id k123ABC   # asks for the secret, no echo
+zode env network staging                            # one row per host router
+zode env mesh staging off                           # log every router out
+```
+
+`zode env network` shows each host's router with `ONLINE`, `ROUTES` (what your mesh gives it) and `ERROR` in your mesh's own words. The console's environment **Networking** tab shows the same, plus the policy lines to paste. Disconnecting logs every router out of your mesh, removes the routes Zode made, and wipes the routers' state. Sandboxes keep their internet access throughout; only the mesh goes.
+
+Owners and admins connect and disconnect. The API is `GET` and `PUT /v1/environments/{id}/network` (`cidr`, `domains`) and `PUT` and `DELETE /v1/environments/{id}/mesh`.
+
+## If it doesn't connect
+
+| What you see | What it means |
+| --- | --- |
+| `ONLINE` false, `ERROR` names the key | The key is wrong, expired or used up. Use a reusable key, or an OAuth client on Tailscale. |
+| `ONLINE` true, your machine can't reach the sandbox | The slice's route isn't approved, or no security group lets the traffic in. |
+| The sandbox can't reach a host on your mesh | Your mesh's rules don't allow the router (NetBird) or the range (Tailscale) to reach it, or the route isn't approved for the router. |
+| A name doesn't resolve | Its domain isn't in `--domains`. |
+
+## Limits
+
+- IPv4 only.
+- 254 sandboxes of one environment per host. The next goes to another host.
+- One mesh per environment. Use two environments to join two meshes.

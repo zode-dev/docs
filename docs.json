@@ -66,6 +66,15 @@
             ]
           },
           {
+            "group": "Private networking",
+            "pages": [
+              "networking/private-networking",
+              "networking/tailscale",
+              "networking/headscale",
+              "networking/netbird"
+            ]
+          },
+          {
             "group": "CI",
             "pages": [
               "concepts/ci",

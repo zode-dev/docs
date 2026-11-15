@@ -1,0 +1,60 @@
+---
+title: "Headscale"
+description: "Join a Zode environment to your own Headscale server with a tagged, reusable pre-auth key."
+---
+
+Headscale works as [Tailscale](/networking/tailscale) does: each Zode host that runs the environment's sandboxes joins as a node tagged `tag:zode`, advertises its slice of the environment's range, and accepts your routes. The only differences are your server's address and where the key comes from. Read [How private networking works](/networking/private-networking) first.
+
+Your Headscale server must be reachable from the internet over `https://`, since Zode's hosts connect to it like any other node.
+
+## 1. Allow the tag and approve its routes
+
+Add the tag owner and route approval to your Headscale policy file, with your environment's range in place of `10.77.0.0/16` and the user that will own the key:
+
+```json
+{
+  "tagOwners": { "tag:zode": ["zode@"] },
+  "autoApprovers": { "routes": { "10.77.0.0/16": ["tag:zode"] } },
+  "acls": [
+    { "action": "accept", "src": ["10.77.0.0/16"], "dst": ["tag:db:5432"] },
+    { "action": "accept", "src": ["group:engineering"], "dst": ["10.77.0.0/16:22,3000"] }
+  ]
+}
+```
+
+Without `autoApprovers`, approve each router's route with `headscale nodes approve-routes`.
+
+## 2. Make a key
+
+Create a user for Zode if you don't have one, then a reusable pre-auth key with the tag:
+
+```bash
+headscale users create zode
+headscale preauthkeys create --user <zode user id> --reusable --tags tag:zode --expiration 90d
+```
+
+## 3. Connect
+
+```bash
+zode env mesh staging headscale --control-url https://headscale.example.com
+# Auth key: (asked for, not shown)
+```
+
+`--control-url` is your server's public address. Zode refuses anything that isn't `https://`.
+
+## 4. Check it
+
+```bash
+zode env network staging
+headscale nodes list        # zode-staging-<host> nodes, tagged tag:zode
+```
+
+Then reach a host on your network from a sandbox, and a sandbox's `ZODE_PRIVATE_IP` from one of your nodes. For MagicDNS names, add your `base_domain`: `zode env network staging --domains tail.example.com`. Reaching a sandbox also needs a [security group](/networking/private-networking#traffic-each-way) with an inbound `@mesh` rule.
+
+## Disconnect
+
+```bash
+zode env mesh staging off
+```
+
+Every router logs out and its state is wiped. Expire the key with `headscale preauthkeys expire` once you no longer need it.

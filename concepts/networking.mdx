@@ -13,29 +13,23 @@ To let a sandbox reach a host only your own machine can, run [`zode bridge`](/cl
 
 ## Security groups
 
-<Note>
-A host rule (such as `api.stripe.com`) allows the addresses the sandbox's DNS resolver hands out for that name. Attach a group with a host rule when you create the sandbox. Added to a sandbox that already looked the name up, the rule takes effect for that host when the sandbox's cached answer expires, or at once after `resolvectl flush-caches` in the sandbox.
-</Note>
-
 A security group is a set of allow rules for what a sandbox may send (outbound) and receive (inbound). Anything no rule allows is dropped. Rules are stateful: replies to an allowed connection are allowed. They are enforced on the host, so a program in the sandbox cannot change them.
 
 - Groups belong to an environment. Every environment has a group called `default`: outbound to the internet and the mesh, inbound only from other members of `default`. That is what sandboxes have today.
 - A sandbox has up to 5 groups and is allowed the union of their rules. A sandbox that names none gets its environment's `default`.
 - A rule has a protocol (`tcp`, `udp`, `icmp` or `all`), ports (one, a range, or all) and a target: `internet`, `mesh`, a CIDR, a host name (outbound only, such as `api.stripe.com` or `*.stripe.com`), or another group in the same environment.
 - Up to 60 rules per group. A rule that names a range Zode keeps for itself is refused, so nobody believes it works.
-- Changing a group applies to running sandboxes within seconds, and cuts live connections the new rules no longer allow.
+- Changing a group applies to running sandboxes within seconds, and cuts live connections the new rules no longer allow. A new host rule works at once even for a name the sandbox already looked up.
+- A host rule (such as `api.stripe.com`) allows the addresses the sandbox's DNS resolver hands out for that name. A program that uses its own DNS or a hard-coded address gets nothing from it: host rules fail closed.
 - A group that a sandbox uses cannot be deleted.
 
 Manage them with [`zode sg`](/cli/workspace#zode-sg), the console (**Security groups**), or the API: `GET` and `POST /v1/security-groups`, `GET`, `PATCH` and `DELETE /v1/security-groups/{id}`, and `GET` and `PUT /v1/sandboxes/{id}/security-groups`. Owners and admins change them.
 
 ## Private networking
 
-Private networking connects an environment to your own Tailscale tailnet, Headscale server or NetBird network. Sandboxes in that environment can then reach what your mesh reaches, such as a database behind a subnet router, and your machines can reach the sandboxes by a private IP, under your mesh's own access rules.
+Private networking joins an environment to your own Tailscale tailnet, Headscale server or NetBird network. Sandboxes can then reach what your mesh reaches, and your machines can reach the sandboxes by a private IP, under your mesh's own access rules. Each sandbox reads its address from `ZODE_PRIVATE_IP`.
 
-- The environment has a private range, an IPv4 `/16` from the private ranges (default `10.77.0.0/16`). Ranges Zode or the mesh uses (including `100.64.0.0/10`) are refused.
-- Each sandbox gets a private IP from that range, kept across stop and start. A fork or restored snapshot gets its own.
-- Names under the mesh's DNS domain, or domains you list, resolve through the mesh. Everything else resolves as before.
-- The mesh credential (a Tailscale OAuth client or auth key, or a NetBird setup key) is written once and never returned. It never enters a sandbox.
-- IPv4 only.
+- [How private networking works](/networking/private-networking): routers, addresses, traffic each way, DNS, and what to check when it doesn't connect.
+- Setup: [Tailscale](/networking/tailscale), [Headscale](/networking/headscale), [NetBird](/networking/netbird).
 
-Manage it with [`zode env network` and `zode env mesh`](/cli/environments-secrets#private-network-and-mesh), or the API: `GET` and `PUT /v1/environments/{id}/network` (`cidr`, `domains`), and `PUT` and `DELETE /v1/environments/{id}/mesh`. The console's environment **Networking** tab shows each host's connection and the policy lines to paste into your tailnet.
+Manage it with [`zode env network` and `zode env mesh`](/cli/environments-secrets#private-network-and-mesh), the console's environment **Networking** tab, or the API: `GET` and `PUT /v1/environments/{id}/network`, and `PUT` and `DELETE /v1/environments/{id}/mesh`.

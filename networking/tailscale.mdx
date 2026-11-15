@@ -1,0 +1,78 @@
+---
+title: "Tailscale"
+description: "Join a Zode environment to your tailnet with an OAuth client or a tagged auth key."
+---
+
+Each Zode host that runs the environment's sandboxes joins your tailnet as a device tagged `tag:zode`, advertises its slice of the environment's range as a subnet route, and accepts your tailnet's routes. Read [How private networking works](/networking/private-networking) first.
+
+## 1. Allow the tag and approve its routes
+
+In the Tailscale admin console, open **Access controls** and add these to your policy file, with your environment's range in place of `10.77.0.0/16`:
+
+```json
+"tagOwners": {
+  "tag:zode": ["autogroup:admin"]
+},
+"autoApprovers": {
+  "routes": { "10.77.0.0/16": ["tag:zode"] }
+}
+```
+
+`autoApprovers` approves each router's route as it comes up, so new hosts need nothing from you. Without it, approve each `zode-<environment>-<host>` device's route by hand under **Machines**.
+
+## 2. Write the access rules
+
+Sandboxes appear on your tailnet as their own private IPs, so write rules for the range and the tag like any other device. For example, sandboxes may reach your Postgres, and engineers may reach the sandboxes:
+
+```json
+"grants": [
+  { "src": ["10.77.0.0/16"], "dst": ["tag:db"], "ip": ["tcp:5432"] },
+  { "src": ["group:engineering"], "dst": ["10.77.0.0/16"], "ip": ["tcp:22", "tcp:3000"] }
+]
+```
+
+## 3. Make a credential
+
+<Tabs>
+  <Tab title="OAuth client (recommended)">
+    Under **Settings > OAuth clients**, generate a client with the **Auth Keys** write scope and the tag `tag:zode`. Zode uses it to mint a single-use, tagged key for each router as it starts, so nothing on Zode's side expires.
+
+    ```bash
+    zode env mesh staging tailscale --oauth-client-id k123ABC
+    # Client secret: (asked for, not shown)
+    ```
+  </Tab>
+  <Tab title="Auth key">
+    Under **Settings > Keys**, generate an auth key that is **reusable**, **pre-approved** and tagged `tag:zode`. Every router joins with it, so replace it before it expires.
+
+    ```bash
+    zode env mesh staging tailscale
+    # Auth key: (asked for, not shown)
+    ```
+  </Tab>
+</Tabs>
+
+Both read the secret from stdin too, for scripts: `printf %s "$TS_KEY" | zode env mesh staging tailscale`.
+
+## 4. Check it
+
+```bash
+zode env network staging
+```
+
+Each host's router shows `ONLINE` and its approved routes. Then, from a sandbox and from your laptop:
+
+```bash
+zode exec api -- curl -s http://db.tail1234.ts.net:8080/health
+ping 10.77.3.2        # a sandbox's ZODE_PRIVATE_IP, from a machine on your tailnet
+```
+
+To use MagicDNS names in sandboxes, list your tailnet's DNS name: `zode env network staging --domains tail1234.ts.net`. Reaching a sandbox from your tailnet also needs a [security group](/networking/private-networking#traffic-each-way) with an inbound `@mesh` rule.
+
+## Disconnect
+
+```bash
+zode env mesh staging off
+```
+
+Every router logs out and its state is wiped. The devices stay in your admin console until Tailscale removes them, or you delete them.

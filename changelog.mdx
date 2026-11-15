@@ -3,6 +3,20 @@ title: "Changelog"
 description: "User-facing changes to Zode: the API, CLI, SDK, console and sandboxes, newest first."
 ---
 
+<Update label="2026-11-15" description="Private networking guides, ZODE_PRIVATE_IP, and CI job filters">
+**Private networking**
+
+- New guides: [How private networking works](/networking/private-networking), and setup for [Tailscale](/networking/tailscale), [Headscale](/networking/headscale) and [NetBird](/networking/netbird).
+- Every `zode exec` and session of a sandbox on a private network gets `ZODE_PRIVATE_IP`, its address on your mesh.
+- NetBird routers now send sandbox traffic as their own peer address, so NetBird policies for the routers' group apply. Sandboxes reached hosts on a NetBird network only from the router before.
+- A host rule added to a running sandbox works at once, even for a name the sandbox already looked up.
+
+**CI**
+
+- The console's CI jobs list opens on the last 7 days, with filters for period, status and repository, kept in the URL. `GET /v1/ci/jobs` takes `state`, `repo`, `since` and a `before` cursor.
+- CI moved to the **Run** section of the console's sidebar.
+</Update>
+
 <Update label="2026-11-14" description="Port previews, zode up and down, and the CLI covers the console">
 **Security groups and private networking are on**
 

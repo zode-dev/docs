@@ -1,0 +1,54 @@
+---
+title: "CI benchmark method"
+description: "How the Zode CI benchmark against GitHub-hosted runners is measured: P50 and P95 over every run, wait and bill kept apart, machines and cache state named."
+---
+
+The benchmark runs the same open-source workflows at the same pinned commits on a GitHub-hosted runner and on Zode, cold and warm, side by side. The harness, every run and the page data are public in [zodeops/ci-bench](https://github.com/zodeops/ci-bench).
+
+## What is measured
+
+| Number | From | To |
+|---|---|---|
+| **End to end** | The workflow is dispatched | The last job is done |
+| **Queued** | The workflow is dispatched | The first job starts |
+| **Run** | The first job starts | The last job is done |
+
+End to end is what a developer waits for, and it is queued plus run for every run.
+
+## How it is reported
+
+- Each number is a **P50 and P95** (nearest rank) over every run of one repository, machine and cache state, shown with the run count and the days the runs span.
+- No single best run is a result. Each cell links one run near the P50 so you can open it.
+- Percentiles do not add: the P50s of queued and run need not sum to the P50 of end to end.
+- A repository counts as a Zode win or loss on P50 end to end, within 5% is even. The P95 ratio is shown next to it.
+
+## Wait and bill are separate
+
+**Runner minutes** are every job's run time added up, and **price** is what those minutes cost. A workflow with four parallel jobs bills four times what the developer waits. The bill is its own axis and is never added to a wait time.
+
+GitHub's price is the list price of the same machine on a private repository: the Linux 4-core larger runner at $0.012 a minute, each job rounded up to the minute. Public repositories run free. Zode's price is what the run was billed, per second, from the Zode API.
+
+## Machines and cache
+
+| Side | Runner | Machine |
+|---|---|---|
+| GitHub-hosted | `ubuntu-24.04` | 4 vCPU, 16 GB RAM (public repository) |
+| Zode | `zode-4x8` | 4 vCPU, 8 GB RAM, a microVM on a shared node |
+
+**Cold** deletes the branch's Actions caches before the run. **Warm** runs right after, with what cold saved. Both sides run the same mode at the same time.
+
+## Sample size
+
+A cell with fewer than 20 runs is marked **small sample**, and so is any comparison that uses one. One weekly run is 3 runs a cell, so a single week is always a small sample. Pooling weeks of the same pinned commits gives a larger one.
+
+## Rerun it
+
+```bash
+git clone https://github.com/zodeops/ci-bench && cd ci-bench
+export BENCH_OWNER=<your GitHub account>
+scripts/mirror.sh helm
+scripts/bench.py --repos helm --runners ubuntu-24.04 --runs 20 --out results/mine
+scripts/site-data.py results/mine
+```
+
+The published P50 should land within 15% of yours.

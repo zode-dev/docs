@@ -1,6 +1,6 @@
 export const OfficialImages = ({
   endpoint = "https://api.zode.dev/v1/official-images",
-  readme = "https://github.com/zodeops/runner-images#readme",
+  readme = "https://github.com/zode-dev/runner-images#readme",
 }) => {
   const [state, setState] = useState({ status: "loading", images: [] });
 

@@ -11,6 +11,10 @@ description: "User-facing changes to Zode: the API, CLI, SDK, console and sandbo
 - In the console, **Environments → Outbound proxies** sets routes, and can create an exit and show its command.
 - API: `GET`, `POST` `/v1/exits`, `DELETE /v1/exits/{id}`, and `GET`, `PUT`, `DELETE /v1/environments/{id}/egress`.
 - MCP: `exit_list`, `exit_create`, `exit_delete`, `environment_egress`, `environment_egress_set` and `environment_egress_clear`.
+
+**CLI**
+
+- New: [`zode upgrade`](/cli/overview#upgrade) (or `zode update`) replaces the CLI with the latest build, checked against the published SHA-256 sums. Run the install script once more to get it.
 </Update>
 
 <Update label="2026-11-15" description="Private networking guides, ZODE_PRIVATE_IP, and CI job filters">

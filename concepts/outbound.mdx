@@ -1,0 +1,85 @@
+---
+title: "Outbound proxies and exits"
+description: "Choose where an environment's sandboxes reach the internet from: your own proxy, or an exit on a machine you own such as a home lab."
+---
+
+By default a sandbox reaches the internet from its host's address, which sites see as a datacenter IP. An environment can send its traffic out somewhere else instead:
+
+- **An exit**: a small agent you run on a machine you own, such as a home lab, an office box or a cheap VPS. Sites see that machine's address. It dials out to Zode, so you open no port, and it works behind CGNAT and home routers.
+- **A proxy**: your own HTTP, HTTPS or SOCKS5 proxy on a public address.
+
+Both are routes. You choose a default route for the environment, and you can send chosen hosts through a different one.
+
+## Run an exit on your own machine
+
+<Steps>
+  <Step title="Create the exit">
+    ```bash
+    zode exit create home
+    ```
+    It prints the command to run, with a token in it. The token is shown once.
+  </Step>
+  <Step title="Run the agent on your machine">
+    Install the [CLI](/cli/overview#install) on the machine your sandboxes should leave from, then run the command `create` printed:
+    ```bash
+    zode exit run zx_...
+    ```
+    It reconnects on its own if the network drops. To run it as a service, put the token in `ZODE_EXIT_TOKEN` and run `zode exit run`.
+  </Step>
+  <Step title="Route an environment through it">
+    ```bash
+    zode env egress default --route home=exit://home --default home
+    ```
+    Every sandbox in the `default` environment now leaves from your machine.
+  </Step>
+</Steps>
+
+`zode exit ls` shows each exit, whether it is online and the address sites see.
+
+In the console, open **Environments**, choose an environment, then **Outbound proxies → Add proxy**. Pick **Zode exit, your own machine** as the protocol. You can create the exit there and copy its command.
+
+### What your machine does
+
+- It connects to each site itself, so DNS is answered on your machine and sites see your address.
+- It refuses private, loopback and link-local addresses, and names that resolve to them, so a sandbox cannot reach your home network or your router. Start it with `--allow-private` if you want sandboxes to reach your private network.
+- TLS stays end to end between Zode and the site. Your machine sees host names and how many bytes go each way, not the content.
+
+Only owners and admins create and delete exits. Deleting one disconnects its agent, and routes that name it fail until you change them.
+
+<Note>
+Traffic through an exit is limited by your machine's upload speed and adds a hop through Zode. Git hosts and package registries stay on the fast direct path unless a host rule names them.
+</Note>
+
+## Use your own proxy
+
+```bash
+zode env egress default --route office=socks5://alice@proxy.example.net:1080 --default office
+```
+
+The CLI asks for the password, so it stays out of your shell history. Schemes are `http`, `https` (TLS to the proxy) and `socks5`. The proxy must be on a public address. Passwords are never shown again; the console and API show them as `****`.
+
+## Send only some hosts through a route
+
+```bash
+zode env egress default --route home=exit://home --host '*.shop.example=home'
+```
+
+For each connection, Zode picks a route by host name:
+
+1. The first host rule that names the host.
+2. Otherwise the default route, except for hosts that stay direct unless a rule names them: git hosts, package registries, `*.zode.dev`, and every host one of your [secrets](/concepts/environments-and-secrets) is sent to.
+3. Otherwise direct.
+
+AI provider calls always go direct through Zode's AI proxy.
+
+A host is `shop.example.com` or `*.example.com`, which also matches `example.com`. An environment has up to 20 routes and 200 rules.
+
+`zode env egress default` shows the routes. `zode env egress default off` sends everything direct again.
+
+## When a route fails
+
+A route that cannot be reached is an error, never a silent direct connection. Plain HTTP requests get a `502` naming the route; HTTPS connections are closed. An exit that is offline fails the same way, until its agent reconnects.
+
+## Other traffic
+
+With routes set, UDP (including QUIC) and IPv6 are blocked except DNS, which goes through Zode's resolver. TCP on other ports uses the default route when there are no host rules, and is blocked when there are. Existing connections close when routes change.

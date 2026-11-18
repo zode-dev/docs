@@ -50,6 +50,26 @@ Only owners and admins create and delete exits. Deleting one disconnects its age
 Traffic through an exit is limited by your machine's upload speed and adds a hop through Zode. Git hosts and package registries stay on the fast direct path unless a host rule names them.
 </Note>
 
+### When your machine is offline
+
+By default, if your exit has been offline for 3 minutes, its sandboxes go back to reaching the internet directly from Zode, and return to your machine within about a minute of it reconnecting. If traffic must never leave from a Zode address, make the exit block instead:
+
+```bash
+zode exit set home --when-offline block
+```
+
+In the console, the exit's row under **Outbound proxies** has a **When offline** choice.
+
+### CI runners
+
+CI runners are created in the default environment unless you choose another, so routing `default` through an exit also routes CI. To keep CI direct, give it its own environment:
+
+```bash
+zode ci env ci-direct
+```
+
+Or under **CI → Settings → Runner environment** in the console.
+
 ## Use your own proxy
 
 ```bash

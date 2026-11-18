@@ -9,9 +9,10 @@ How exits and routes work: [Outbound proxies and exits](/concepts/outbound).
 
 | Command | Does |
 |---|---|
-| `zode exit create <name>` | Makes an exit and prints the command to run on your machine. The token in it is shown once. Owners and admins only. |
+| `zode exit create <name> [--when-offline direct\|block]` | Makes an exit and prints the command to run on your machine. The token in it is shown once. Owners and admins only. |
+| `zode exit set <name> --when-offline direct\|block` | While the exit is offline: after 3 minutes send traffic direct (default), or keep blocking it. |
 | `zode exit run <token>` | Runs the agent on this machine. Reads the token from `ZODE_EXIT_TOKEN` when you leave it out. |
-| `zode exit ls` | Lists exits: online or offline, the address sites see, when it was last seen, and its route URL. |
+| `zode exit ls` | Lists exits: online or offline, the address sites see, when it was last seen, what happens when it is offline, and its route URL. |
 | `zode exit rm <name>` | Deletes an exit. Its agent disconnects and stops. |
 
 `zode exit run` flags:
@@ -62,3 +63,11 @@ zode env egress <env> off
 | `off` | Removes every route. Sandboxes leave direct again. |
 
 Each write replaces all routes and rules. If a running sandbox does not confirm the change within five seconds, the command fails and names it; run it again once the sandbox is reachable.
+
+## zode ci env
+
+```bash
+zode ci env <environment|default>
+```
+
+Chooses the environment CI runners are created in, with its secrets, network and outbound routes. Use it to keep CI direct while the default environment goes through an exit.

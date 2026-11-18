@@ -22,6 +22,8 @@ description: "User-facing changes to Zode: the API, CLI, SDK, console and sandbo
 - In the console, **Environments → Outbound proxies** sets routes, and can create an exit and show its command.
 - API: `GET`, `POST` `/v1/exits`, `DELETE /v1/exits/{id}`, and `GET`, `PUT`, `DELETE /v1/environments/{id}/egress`.
 - MCP: `exit_list`, `exit_create`, `exit_delete`, `environment_egress`, `environment_egress_set` and `environment_egress_clear`.
+- An exit that has been offline for 3 minutes sends its sandboxes direct until it reconnects; `zode exit set <name> --when-offline block` keeps them blocked instead.
+- CI runners can use their own environment (`zode ci env`), so routing `default` through an exit no longer has to route CI.
 
 **CLI**
 

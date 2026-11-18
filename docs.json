@@ -57,6 +57,7 @@
               "concepts/official-images",
               "concepts/environments-and-secrets",
               "concepts/networking",
+              "concepts/outbound",
               "concepts/browser-and-desktop",
               "concepts/agents",
               "concepts/spend-and-caps",
@@ -97,6 +98,7 @@
               "cli/logs-stats",
               "cli/up-down",
               "cli/environments-secrets",
+              "cli/exits",
               "cli/browser-desktop",
               "cli/images",
               "cli/workspace",
@@ -233,6 +235,18 @@
               "PUT /v1/environments/{id}/network",
               "PUT /v1/environments/{id}/mesh",
               "DELETE /v1/environments/{id}/mesh"
+            ]
+          },
+          {
+            "group": "Outbound routes and exits",
+            "openapi": "api-reference/openapi.yaml",
+            "pages": [
+              "GET /v1/environments/{id}/egress",
+              "PUT /v1/environments/{id}/egress",
+              "DELETE /v1/environments/{id}/egress",
+              "GET /v1/exits",
+              "POST /v1/exits",
+              "DELETE /v1/exits/{id}"
             ]
           },
           {

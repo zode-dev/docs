@@ -82,6 +82,14 @@ GROUPS = [
         ("PUT", "/v1/environments/{id}/mesh", "Connect a mesh"),
         ("DELETE", "/v1/environments/{id}/mesh", "Disconnect the mesh"),
     ]),
+    ("Outbound routes and exits", [
+        ("GET", "/v1/environments/{id}/egress", "Get outbound routes"),
+        ("PUT", "/v1/environments/{id}/egress", "Set outbound routes"),
+        ("DELETE", "/v1/environments/{id}/egress", "Clear outbound routes"),
+        ("GET", "/v1/exits", "List exits"),
+        ("POST", "/v1/exits", "Create an exit"),
+        ("DELETE", "/v1/exits/{id}", "Delete an exit"),
+    ]),
     ("Flight recorder", [
         ("GET", "/v1/sandboxes/{id}/timeline", "Read the timeline"),
         ("GET", "/v1/sandboxes/{id}/stats", "Summarize a window"),

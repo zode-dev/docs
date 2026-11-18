@@ -11,6 +11,8 @@ description: "What a sandbox can reach, security groups, and private networking 
 
 To let a sandbox reach a host only your own machine can, run [`zode bridge`](/cli/up-down#zode-bridge).
 
+To choose where sandboxes reach the internet from, such as your own proxy or a machine you own like a home lab, see [Outbound proxies and exits](/concepts/outbound).
+
 ## Security groups
 
 A security group is a set of allow rules for what a sandbox may send (outbound) and receive (inbound). Anything no rule allows is dropped. Rules are stateful: replies to an allowed connection are allowed. They are enforced on the host, so a program in the sandbox cannot change them.

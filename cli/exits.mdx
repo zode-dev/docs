@@ -1,0 +1,64 @@
+---
+title: "Exits and outbound routes"
+description: "zode exit and zode env egress: run an exit on your own machine and choose where an environment's sandboxes reach the internet from."
+---
+
+How exits and routes work: [Outbound proxies and exits](/concepts/outbound).
+
+## zode exit
+
+| Command | Does |
+|---|---|
+| `zode exit create <name>` | Makes an exit and prints the command to run on your machine. The token in it is shown once. Owners and admins only. |
+| `zode exit run <token>` | Runs the agent on this machine. Reads the token from `ZODE_EXIT_TOKEN` when you leave it out. |
+| `zode exit ls` | Lists exits: online or offline, the address sites see, when it was last seen, and its route URL. |
+| `zode exit rm <name>` | Deletes an exit. Its agent disconnects and stops. |
+
+`zode exit run` flags:
+
+| Flag | Does |
+|---|---|
+| `--allow-private` | Lets sandboxes reach private and loopback addresses from this machine, such as your home network. Off by default. |
+| `-v` | Logs more, including each refused connection. |
+
+It prints a line when it connects, when it reconnects, and once a minute with the number of connections. It stops with an error only when the token is refused, because the exit was deleted or the token is wrong. Stop it with Ctrl+C.
+
+### Run it as a service
+
+```ini /etc/systemd/system/zode-exit.service
+[Unit]
+Description=Zode exit
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=ZODE_EXIT_TOKEN=zx_...
+ExecStart=/usr/local/bin/zode exit run
+Restart=on-failure
+DynamicUser=yes
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable --now zode-exit
+```
+
+## zode env egress
+
+```bash
+zode env egress <env>
+zode env egress <env> --route NAME=URL [--route ...] [--host PATTERN=NAME ...] [--default NAME|direct]
+zode env egress <env> off
+```
+
+| Form | Does |
+|---|---|
+| `zode env egress default` | Shows the routes, host rules and default route. |
+| `--route NAME=URL` | A route. `URL` is `exit://<exit name>`, or a proxy: `http://`, `https://` or `socks5://user@host:port`. A proxy password is read from stdin or asked for. |
+| `--host PATTERN=NAME` | Sends `shop.example.com` or `*.example.com` through route `NAME`. Repeat it; the first match wins. |
+| `--default NAME` | The route for every other host. `direct` when left out. |
+| `off` | Removes every route. Sandboxes leave direct again. |
+
+Each write replaces all routes and rules. If a running sandbox does not confirm the change within five seconds, the command fails and names it; run it again once the sandbox is reachable.

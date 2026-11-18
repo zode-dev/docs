@@ -16,6 +16,7 @@ tags:
 - name: Images
 - name: Environments
 - name: Networking
+- name: Outbound routes and exits
 - name: Flight recorder
 - name: Attestation
 - name: Agents
@@ -232,6 +233,19 @@ paths:
           $ref: '#/components/responses/Error'
         '402':
           $ref: '#/components/responses/PlanOrCredit'
+        '404':
+          description: '`not_found`: no such workspace image.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: '`invalid_state`: an image no node serves, one with no build in that size, or a
+            workspace image not ready.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '502':
           description: The node failed; the sandbox is left in status `error` and can be deleted.
           content:
@@ -667,6 +681,20 @@ paths:
                   height:
                     type: integer
                     example: 800
+                  kind:
+                    type: string
+                    enum:
+                    - android
+                    description: android for a phone screen; absent for the Linux desktop. width and height
+                      are then the phone's screen in its current orientation.
+                  rotation:
+                    type: integer
+                    enum:
+                    - 0
+                    - 90
+                    - 180
+                    - 270
+                    description: 'Phone only: degrees clockwise from portrait (absent means 0).'
         '401':
           $ref: '#/components/responses/Error'
         '403':
@@ -1139,11 +1167,20 @@ paths:
       tags:
       - Images
       summary: List images
-      description: 'Base images the fleet can boot, and the workspace''s custom images (owner, admin,
-        member).
+      description: 'The images the workspace can start, and its custom images (owner, admin, member).
 
 
-        One golden image per sandbox size; the first is the default. `fixed`
+        `catalog` lists every image a sandbox can run, with no size in any
+
+        name: `zode/ubuntu-24.04` (the default), the published official
+
+        lines and the workspace''s own images, each with what it shows
+
+        (shell, desktop, phone) and the sizes it starts at (GET /v1/sizes).
+
+        `images` is the older list of one golden per size; the first is
+
+        the default. `fixed`
 
         is false on a development fleet that takes any shape within the
 
@@ -4082,6 +4119,203 @@ paths:
           $ref: '#/components/responses/Error'
     parameters:
     - $ref: '#/components/parameters/EnvironmentID'
+  /v1/environments/{id}/egress:
+    get:
+      operationId: getEnvironmentEgress
+      tags:
+      - Outbound routes and exits
+      summary: Get outbound routes
+      description: 'Where the environment''s sandboxes leave from.
+
+
+        The environment''s own upstream proxies (routes) and the host rules
+
+        that use them. Passwords show as `****`.
+
+        No routes means every sandbox leaves from its node''s address.'
+      responses:
+        '200':
+          description: The routes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EgressView'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      operationId: setEnvironmentEgress
+      tags:
+      - Outbound routes and exits
+      summary: Set outbound routes
+      description: 'Replace the environment''s routes and rules (owner, admin).
+
+
+        Routes are `http://`, `https://` or `socks5://` proxies on public
+
+        addresses, with optional `user:password`, or `exit://<id>` naming one
+
+        of the workspace''s exits (`/v1/exits`). A route sent back with the
+
+        password `****` (as read) keeps the stored password when its name,
+
+        host and user are unchanged. Rules send `shop.example.com` or
+
+        `*.example.com` through a route; `default` is the route for every
+
+        other host (`direct` when absent). Git hosts, package registries,
+
+        AI providers and hosts a secret may be sent to stay direct unless a
+
+        rule names them. A route that fails is an error, never a direct
+
+        connection. Changes are pushed to live sandboxes with a five-second
+
+        acknowledgement budget. A 202 response names pending sandboxes;
+
+        their old policy remains until a successful refresh. Audited
+
+        `environment.egress.set` without credentials.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EgressTable'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EgressView'
+        '202':
+          description: Saved; some live sandboxes have not acknowledged the change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EgressView'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: clearEnvironmentEgress
+      tags:
+      - Outbound routes and exits
+      summary: Clear outbound routes
+      description: 'Send everything direct again (owner, admin).
+
+
+        Audited `environment.egress.clear`.'
+      responses:
+        '200':
+          description: Cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EgressView'
+        '202':
+          description: Saved; some live sandboxes have not acknowledged the change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EgressView'
+        default:
+          $ref: '#/components/responses/Error'
+    parameters:
+    - $ref: '#/components/parameters/EnvironmentID'
+  /v1/exits:
+    get:
+      operationId: listExits
+      tags:
+      - Outbound routes and exits
+      summary: List exits
+      description: 'The workspace''s exits, online or not.
+
+
+        A home exit is a small agent (`zode exit run`) on a machine the
+
+        workspace owns. It dials out to the API, so it needs no open port,
+
+        and an egress route `exit://<id>` sends traffic through it: sites see
+
+        that machine''s address. `last_ip` is the
+
+        address the agent last connected from.'
+      responses:
+        '200':
+          description: The exits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exits:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Exit'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createExit
+      tags:
+      - Outbound routes and exits
+      summary: Create an exit
+      description: 'Create an exit (owner, admin); its token is in this answer only.
+
+
+        Audited `exit.create`. The name follows route names (1 to 32 lowercase letters, digits or dashes).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              properties:
+                name:
+                  type: string
+                  pattern: ^[a-z0-9-]{1,32}$
+                  example: home
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/Exit'
+                - type: object
+                  properties:
+                    token:
+                      type: string
+                      description: zx_...; shown once, kept only as a hash
+                    command:
+                      type: string
+                      example: zode exit run zx_...
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/exits/{id}:
+    delete:
+      operationId: deleteExit
+      tags:
+      - Outbound routes and exits
+      summary: Delete an exit
+      description: 'Delete an exit (owner, admin); its agent disconnects.
+
+
+        Audited `exit.delete`. Routes naming it fail (never direct) until changed.'
+      responses:
+        '200':
+          description: Deleted
+        default:
+          $ref: '#/components/responses/Error'
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: ^ex_[a-z0-9]{16}$
   /v1/security-groups:
     get:
       operationId: listSecurityGroups
@@ -6427,6 +6661,101 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
   schemas:
+    EgressRoute:
+      type: object
+      required:
+      - name
+      - url
+      properties:
+        name:
+          type: string
+          pattern: ^[a-z0-9-]{1,32}$
+          example: home
+        url:
+          type: string
+          example: socks5://alice:****@proxy.example.net:1080
+    EgressRule:
+      type: object
+      required:
+      - hosts
+      - route
+      properties:
+        hosts:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: string
+            example: '*.example.com'
+        route:
+          type: string
+    EgressTable:
+      type: object
+      properties:
+        routes:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/EgressRoute'
+        rules:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/EgressRule'
+        default:
+          type: string
+          description: route for hosts no rule names; direct when absent
+          example: direct
+    EgressView:
+      allOf:
+      - $ref: '#/components/schemas/EgressTable'
+      - type: object
+        properties:
+          pending_sandboxes:
+            type: array
+            items:
+              type: string
+            description: Sandboxes whose node did not acknowledge; unknown if listing failed. Present
+              on 202 writes only.
+          updated_at:
+            type: string
+            format: date-time
+          updated_by:
+            type: string
+    Exit:
+      type: object
+      required:
+      - id
+      - name
+      - route_url
+      - online
+      - created_at
+      properties:
+        id:
+          type: string
+          example: ex_abcdefghijklmnop
+        name:
+          type: string
+          example: home
+        route_url:
+          type: string
+          description: what an egress route names
+          example: exit://ex_abcdefghijklmnop
+        online:
+          type: boolean
+        last_seen_at:
+          type: string
+          format: date-time
+        last_ip:
+          type: string
+          description: the address the agent last connected from; sites see it
+        agent_version:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
     CIJob:
       type: object
       description: One GitHub Actions job that asked for a Zode runner.
@@ -7519,10 +7848,11 @@ components:
                 \ not a closed enum: new codes are added over time,\nso treat an unknown code by its HTTP\
                 \ status. The codes in use,\nby status (a few appear under two):\n\n- 400: `bad_request`\
                 \ (malformed JSON or unknown field),\n  `invalid_link` (a mailed link that is bad, used\
-                \ or expired),\n  `invalid_request`, `bad_signature`, `confirm_required`,\n  `default_environment`,\
-                \ `email_not_allowed`,\n  `endpoint_required`, `invalid_code`, `invalid_email`,\n  `invalid_image`,\
-                \ `invalid_name`, `invalid_nonce`,\n  `invalid_state`, `invalid_token`, `not_admin`,\n\
-                \  `order_mismatch`, `org_required`, `owner_cannot_leave`,\n  `password_too_long`, `password_too_short`,\n\
+                \ or expired),\n  `invalid_request`, `bad_signature`, `confirm_required`,\n  `bot_check_failed`\
+                \ (Turnstile token missing or refused),\n  `default_environment`, `email_not_allowed`,\n\
+                \  `endpoint_required`, `invalid_code`, `invalid_email`,\n  `invalid_image`, `invalid_name`,\
+                \ `invalid_nonce`,\n  `invalid_state`, `invalid_token`, `not_admin`,\n  `order_mismatch`,\
+                \ `org_required`, `owner_cannot_leave`,\n  `password_too_long`, `password_too_short`,\n\
                 \  `personal_workspace`, `same_email`, `secret_unsupported`,\n  `self`, `too_many`, `unknown_channel`,\n\
                 \  `unknown_environment`, `unknown_installation`,\n  `url_not_allowed`, `use_transfer`,\
                 \ `invalid_rule`,\n  `mesh_credential_refused`\n- 401: `unauthorized`, `invalid_credentials`,\
@@ -7552,20 +7882,24 @@ components:
                 \ `enforce_not_available` (test selection),\n  `enforce_not_ready` (Enforce before 200\
                 \ clean Shadow runs),\n  `not_a_proof_repo` (Enforce bypass outside the proof list),\n\
                 \  `node_id_taken` (node heartbeat), `shard_limit`,\n  `runner_not_running`, `memory_fork_unavailable`\
-                \ (CI\n  test-shard workers), `no_change`, `already_suspended`,\n  `not_suspended` (platform\
+                \ (CI\n  test-shard workers), `failure_snapshot_unavailable`,\n  `failure_snapshot_limit`\
+                \ (CI failure snapshots),\n  `no_change`, `already_suspended`,\n  `not_suspended` (platform\
                 \ admin controls)\n- 410: `expired`, `used`, `expired_token`, `expired_invite`,\n  `code_expired`,\
-                \ `code_used_up`\n- 413: `too_large`\n- 415: `unsupported_media_type`\n- 429: `rate_limited`\
-                \ (see the RateLimited response),\n  `too_many_viewers` (desktop viewers)\n- 500: `internal`\n\
-                - 501 (this server or host cannot do it yet):\n  `feature_unavailable`, `attach_unavailable`,\n\
-                \  `exec_unavailable`, `snapshots_unavailable`,\n  `security_groups_unavailable`,\n  `private_networking_unavailable`,\n\
+                \ `code_used_up`\n- 413: `too_large`\n- 415: `unsupported_media_type`\n- 426: `upgrade_required`\
+                \ (an exit agent on another protocol)\n- 429: `rate_limited` (see the RateLimited response),\n\
+                \  `too_many_viewers` (desktop viewers)\n- 500: `internal`\n- 501 (this server or host\
+                \ cannot do it yet):\n  `feature_unavailable`, `attach_unavailable`,\n  `exec_unavailable`,\
+                \ `snapshots_unavailable`,\n  `security_groups_unavailable`,\n  `private_networking_unavailable`,\n\
                 \  `images_unavailable`, `recorder_unavailable`,\n  `attestation_unavailable`, `disk_fork_unavailable`,\n\
                 \  `ports_unavailable`\n- 502: `node_error`, `billing_error` (Stripe unreadable), `helper_failed`\
                 \ (the throwaway sign-in\n  sandbox did not start), `host_unreachable`, `key_destroy_failed`,\n\
-                \  `provider_error`, `github_error`, `recorder_error`, `node_unreachable`\n- 503: `no_capacity`,\
-                \ `unhealthy`, `alerts_unavailable`,\n  `auth_unavailable`, `ci_unavailable`, `email_unavailable`,\n\
-                \  `ingest_unavailable`, `secrets_unavailable`,\n  `webhook_not_ready`, `official_images_off`,\n\
-                \  `ci_tests_unavailable`, `pool_unavailable`\n\nThe device-flow code and token endpoints\
-                \ answer 400 in the\nRFC 6749/8628 shape instead (OAuthError).\n"
+                \  `provider_error`, `github_error`, `recorder_error`, `node_unreachable`,\n  `exit_failed`\
+                \ (the exit could not reach the site)\n- 503: `no_capacity`, `unhealthy`, `alerts_unavailable`,\n\
+                \  `auth_unavailable`, `ci_unavailable`, `email_unavailable`,\n  `ingest_unavailable`,\
+                \ `secrets_unavailable`, `egress_unavailable`,\n  `webhook_not_ready`, `official_images_off`,\n\
+                \  `ci_tests_unavailable`, `pool_unavailable`, `github_unavailable`,\n  `exit_offline`\
+                \ (no agent is linked for the exit)\n\nThe device-flow code and token endpoints answer\
+                \ 400 in the\nRFC 6749/8628 shape instead (OAuthError).\n"
             message:
               type: string
     SandboxStatus:
@@ -7676,6 +8010,10 @@ components:
           type: integer
         disk_gb:
           type: integer
+        size:
+          type: string
+          example: medium
+          description: The size's name (GET /v1/sizes); `<vcpus>x<ram GB>` for a shape outside the catalogue.
         region:
           type: string
           example: eu-central
@@ -7740,9 +8078,11 @@ components:
     CreateSandboxRequest:
       type: object
       additionalProperties: false
-      description: 'A sandbox is one of the server''s sizes, listed by GET /v1/images
+      description: 'Image and size are two choices: `image` is what runs
 
-        (`images`, the first is the default). The hosted API has four:
+        (GET /v1/images `catalog`; default `zode/ubuntu-24.04`) and `size`
+
+        how big it is (GET /v1/sizes). The hosted API has four sizes:
 
 
         | Size | vcpus | ram_mb | disk_gb |
@@ -7751,22 +8091,30 @@ components:
 
         | small (the default) | 2 | 4096 | 50 |
 
-        | default | 4 | 8192 | 50 |
+        | medium | 4 | 8192 | 50 |
 
         | large | 8 | 16384 | 110 |
 
         | xlarge | 16 | 32768 | 250 |
 
 
-        Leave out `vcpus`, `ram_mb` and `disk_gb` for small. Otherwise send
+        `{"image": "zode/debian-13", "size": "large"}` is the usual request.
 
-        `vcpus`, `ram_mb` or both, plus `disk_gb` if you like: every field
+        Explicit `vcpus`, `ram_mb` and `disk_gb` still work: leave them all
 
-        sent must match the same size, else 400 `invalid_request` naming the
+        out for small, or send `vcpus`, `ram_mb` or both, plus `disk_gb` if
 
-        sizes. `disk_gb` alone is 400. The size named `default` (as in the
+        you like; every field sent must match the same size, else 400
 
-        CLI and pricing) is not what an empty request gets.
+        `invalid_request` naming the sizes. `disk_gb` alone is 400. With
+
+        `size`, they may be left out or must match it. Old names still work:
+
+        `default` is medium, and the old golden names `small-v8`,
+
+        `medium-v8`, `large-v8`, `xlarge-v7` (as `image` or `size`) mean
+
+        `zode/ubuntu-24.04` at that size.
 
         '
       properties:
@@ -7822,15 +8170,38 @@ components:
             keeps running. Omitted means the workspace's per-sandbox default.
         image:
           type: string
-          description: 'A ready custom image of the workspace (img_ id or name), which
+          example: zode/debian-13
+          description: 'What the sandbox runs (GET /v1/images `catalog`). `zode/ubuntu-24.04`
 
-            fixes the size and region (other values give 400), or an official
+            is the default. An official image `zode/<line>` (GET
 
-            image `zode/<line>` (GET /v1/official-images), which comes in every
+            /v1/official-images) comes in every size and keeps the requested
 
-            size and keeps the requested one. An official line with no
+            one; a line no node serves, or with no published build in that
 
-            published build in that size gives 409 `invalid_state`.
+            size, gives 409 `invalid_state` naming the images that start. A
+
+            ready custom image of the workspace (img_ id or name) fixes the
+
+            size and region (other values give 400). An old golden name
+
+            (`large-v8`) means `zode/ubuntu-24.04` at that size, unless the
+
+            workspace has an image of that name.
+
+            '
+        size:
+          type: string
+          enum:
+          - small
+          - medium
+          - large
+          - xlarge
+          description: 'The size (GET /v1/sizes). Unknown names give 400 `invalid_request`
+
+            listing the sizes; a size the plan does not include gives 402
+
+            `plan_required`. `default` and the old golden names are accepted.
 
             '
         browser:
@@ -8282,6 +8653,67 @@ components:
         password:
           type: string
           description: Only when a password preview is opened
+    CatalogImage:
+      type: object
+      required:
+      - ref
+      - name
+      - kind
+      - os
+      - version
+      - shows
+      - sizes
+      - default
+      - status
+      - built_from
+      - source_url
+      properties:
+        ref:
+          type: string
+          example: zode/debian-13
+          description: 'What POST /v1/sandboxes takes as `image`: `zode/<line>` or an img_ id.'
+        name:
+          type: string
+          example: debian-13
+        kind:
+          type: string
+          enum:
+          - official
+          - workspace
+        os:
+          type: string
+          example: debian
+        version:
+          type: string
+          example: '13'
+        shows:
+          type: array
+          items:
+            type: string
+            enum:
+            - shell
+            - desktop
+            - phone
+          description: What it puts on screen.
+        sizes:
+          type: array
+          items:
+            type: string
+          description: Size names it starts at now (GET /v1/sizes).
+        default:
+          type: boolean
+        status:
+          type: string
+          description: '`ready`; a workspace image may be `building` or `failed`.'
+        built_from:
+          type:
+          - string
+          - 'null'
+          description: The image a workspace image was built from.
+        source_url:
+          type:
+          - string
+          - 'null'
     Images:
       type: object
       required:
@@ -8291,6 +8723,7 @@ components:
       - custom
       - can_build
       - limits
+      - catalog
       properties:
         images:
           type: array
@@ -8329,6 +8762,18 @@ components:
             $ref: '#/components/schemas/CustomImage'
         can_build:
           type: boolean
+        catalog:
+          type: array
+          description: 'Every image the workspace can start, with no size in any name: the base `zode/ubuntu-24.04`
+            first (the default), then
+
+            the published official lines, then the workspace''s own images.
+
+            `images` above is the older per-size list, kept for older clients.
+
+            '
+          items:
+            $ref: '#/components/schemas/CatalogImage'
         limits:
           type: object
           required:

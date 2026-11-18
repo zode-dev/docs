@@ -3,6 +3,16 @@ title: "Changelog"
 description: "User-facing changes to Zode: the API, CLI, SDK, console and sandboxes, newest first."
 ---
 
+<Update label="2026-11-18" description="Exits: route sandboxes through a machine you own">
+**Outbound proxies and exits**
+
+- New: [exits](/concepts/outbound). Run `zode exit run` on a machine you own, such as a home lab, and route an environment through it with `zode env egress <env> --route home=exit://home --default home`. Sites see your machine's address. The agent dials out, so you open no port and it works behind CGNAT.
+- Environments can also send traffic through your own HTTP, HTTPS or SOCKS5 proxy, for every host or only chosen ones. See [Outbound proxies and exits](/concepts/outbound) and the [CLI reference](/cli/exits).
+- In the console, **Environments → Outbound proxies** sets routes, and can create an exit and show its command.
+- API: `GET`, `POST` `/v1/exits`, `DELETE /v1/exits/{id}`, and `GET`, `PUT`, `DELETE /v1/environments/{id}/egress`.
+- MCP: `exit_list`, `exit_create`, `exit_delete`, `environment_egress`, `environment_egress_set` and `environment_egress_clear`.
+</Update>
+
 <Update label="2026-11-15" description="Private networking guides, ZODE_PRIVATE_IP, and CI job filters">
 **Private networking**
 

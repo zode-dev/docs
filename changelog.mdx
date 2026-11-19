@@ -3,6 +3,13 @@ title: "Changelog"
 description: "User-facing changes to Zode: the API, CLI, SDK, console and sandboxes, newest first."
 ---
 
+<Update label="2026-11-19" description="Exits stay online: service install, Mac kept awake">
+**Exits**
+
+- `zode exit install zx_...` runs the exit agent as a background service that starts at login and restarts if it stops (launchd on macOS, a systemd user service on Linux). `zode exit uninstall` removes it. See [Run it as a service](/cli/exits#run-it-as-a-service).
+- On macOS, `zode exit run` keeps the Mac from idle-sleeping while it runs, so the exit stays online with the screen locked. `--allow-sleep` turns this off.
+</Update>
+
 <Update label="2026-11-18" description="Android, and pick an image and a size">
 **Android**
 

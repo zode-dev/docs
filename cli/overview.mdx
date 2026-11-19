@@ -35,7 +35,7 @@ zode 5952024 darwin/arm64
 zode upgrade
 ```
 
-It downloads the latest build for your system, checks it against the published SHA-256 sums like the install script does, and replaces the binary in place. `zode update` does the same. `zode upgrade --check` only tells you whether a newer build exists. If zode is in a directory you cannot write to, such as `/usr/local/bin`, run `sudo zode upgrade`.
+It downloads the latest build for your system, checks it against the published SHA-256 sums like the install script does, and replaces the binary in place. `zode update` does the same. `zode upgrade --check` only tells you whether a newer version exists. `zode version` shows your version, such as `zode 1.0.4 (6a14790) darwin/arm64`: the release number, then the commit it was built from. If zode is in a directory you cannot write to, such as `/usr/local/bin`, run `sudo zode upgrade`.
 
 A zode older than `zode upgrade` itself does not have the command: run the install script again once, and use `zode upgrade` after that.
 
@@ -102,7 +102,7 @@ Every command and flag is on the [CLI reference](/cli/reference) page. By task:
 | Command | What it does | Page |
 |---|---|---|
 | `zode login`, `logout`, `whoami`, `version` | Sign in and out, show the account, print the version | This page |
-| `zode upgrade` | Replace zode with the latest build | [Upgrade](#upgrade) |
+| `zode upgrade` | Replace zode with the latest version | [Upgrade](#upgrade) |
 | `zode ls` | List sandboxes | [Sandboxes](/cli/sandboxes) |
 | `zode new [name]` | Make a sandbox | [Sandboxes](/cli/sandboxes) |
 | `zode ssh <sandbox>` | Open a shell | [Sandboxes](/cli/sandboxes) |

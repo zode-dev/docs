@@ -3,6 +3,17 @@ title: "Changelog"
 description: "User-facing changes to Zode: the API, CLI, SDK, console and sandboxes, newest first."
 ---
 
+<Update label="2026-11-18" description="Android, and pick an image and a size">
+**Android**
+
+- New: an Android 15 phone in a sandbox. `zode new phone --image zode/android --desktop` starts one on its home screen. Install an apk with `zode android phone install app.apk --launch`, press Home, Back and Recents, rotate it and run `adb`. Taps, typing and screenshots go through the desktop, so agents drive it like any other screen. See [Android](/concepts/android).
+- x86_64 and x86 apps only, with no Google Play. Seeing the screen needs the desktop, which is on Pro and Team.
+
+**Images**
+
+- Choose what a sandbox runs and how big it is separately: `--image` (`zode/ubuntu-24.04`, `zode/debian-13`, `zode/fedora-45`, `zode/arch`, `zode/android` or one of your images) and `--size` (`small`, `medium`, `large`, `xlarge`). The console's new-sandbox form has the same two choices.
+</Update>
+
 <Update label="2026-11-18" description="Exits: route sandboxes through a machine you own">
 **Outbound proxies and exits**
 

@@ -1,0 +1,67 @@
+---
+title: "Android"
+description: "Run an Android 15 phone in a sandbox: install an apk, tap and type on its screen, run adb, and let an agent drive it."
+---
+
+A sandbox from `zode/android` is a Linux sandbox with an Android 15 phone running inside it. The phone's screen is the sandbox's [desktop](/concepts/browser-and-desktop), so the live view, screenshots, clicks and typing work the same way they do on a Linux desktop, in the phone's own pixels.
+
+It starts with the phone already on its home screen. There is no emulator: Android runs as a container on the sandbox's own kernel.
+
+## Start one
+
+```bash
+zode new phone --image zode/android --desktop
+```
+
+Any size works (`--size small|medium|large|xlarge`). The screen is 720x1280 in portrait.
+
+Seeing and touching the screen needs the desktop, which is included on Pro and Team. On Free the phone runs, and `zode android` and `adb` work, but there is no screen to view.
+
+## Drive the phone
+
+```bash
+zode android phone install app.apk --launch    # install, then open it
+zode android phone launch org.example.app
+zode android phone key home                    # also back, recents, power, menu, volume_up, volume_down
+zode android phone rotate landscape            # or portrait, 0, 90, 180, 270
+zode android phone status                      # Android version, screen size, rotation
+zode android phone adb -- shell pm list packages
+```
+
+Tap and type with the desktop commands. Coordinates are pixels of the current screenshot, whatever the rotation:
+
+```bash
+zode desktop phone screenshot -o shot.png
+zode desktop phone click 360 640
+zode desktop phone type "hello"
+```
+
+In the console, open the sandbox and use **Desktop**. Clicks are taps and a right click is Back.
+
+## From the SDKs
+
+<CodeGroup>
+
+```ts TypeScript
+const sb = await Sandbox.create({ image: "zode/android", desktop: true });
+await sb.android.install(await fs.readFile("app.apk"), { launch: true });
+await sb.desktop.click(360, 640);
+const png = await sb.desktop.screenshot();
+await sb.android.key("back");
+```
+
+```python Python
+sb = Sandbox.create(image="zode/android", desktop=True)
+sb.android.install(open("app.apk", "rb").read(), launch=True)
+sb.desktop.click(360, 640)
+sb.android.key("home")
+```
+
+</CodeGroup>
+
+## Limits
+
+- x86_64 and x86 apps only. There is no ARM translation, so an apk with only ARM native code is refused with `apk_arm_only`. Most apps built with Kotlin or Java and no native libraries install fine.
+- No Google Play or Play Services.
+- Rendering is in software. It is fine for testing apps and for agents, not for games.
+- Install an `.apk`. App bundles (`.aab`) and split apks are refused with `apk_invalid`.

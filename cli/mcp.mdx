@@ -72,8 +72,10 @@ Every `sandbox` parameter takes a sandbox name or `sbx_` id. Tools that return a
 | `sandbox_logs` | `sandbox`, `since`, `tracks` | What ran, AI calls and network requests. See [sandbox_logs and sandbox_stats](#sandbox_logs-and-sandbox_stats). |
 | `sandbox_stats` | `sandbox`, `since` | CPU, memory, network, processes and AI spend over a window. |
 | `exit_list` | none | The workspace's [exits](/concepts/outbound): online or not, and the address sites see. |
-| `exit_create` | `name` | Makes an exit. Returns a one-time token and the `zode exit run` command for your machine. |
+| `exit_create` | `name`, `offline` (optional) | Makes an exit. Returns a one-time token and the `zode exit run` command for your machine. |
 | `exit_delete` | `exit` (name or `ex_` id) | Deletes an exit. Its agent disconnects. |
+| `exit_set_offline` | `exit`, `offline` (`direct` or `block`) | While offline: send traffic direct after 3 minutes, or block it. |
+| `ci_environment_set` | `environment` | The environment CI runners are created in; `default` for the default. |
 | `environment_egress` | `environment` | The environment's routes, host rules and default route. Passwords show as `****`. |
 | `environment_egress_set` | `environment`, `routes`, `rules`, `default` | Replaces them. A route URL `exit://<exit name>` sends traffic out through that exit. See [Outbound proxies and exits](/concepts/outbound). |
 | `environment_egress_clear` | `environment` | Removes every route; sandboxes leave direct again. |

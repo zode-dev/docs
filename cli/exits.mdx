@@ -9,9 +9,12 @@ How exits and routes work: [Outbound proxies and exits](/concepts/outbound).
 
 | Command | Does |
 |---|---|
-| `zode exit create <name>` | Makes an exit and prints the command to run on your machine. The token in it is shown once. Owners and admins only. |
+| `zode exit create <name> [--when-offline direct\|block]` | Makes an exit and prints the command to run on your machine. The token in it is shown once. Owners and admins only. |
+| `zode exit set <name> --when-offline direct\|block` | While the exit is offline: after 3 minutes send traffic direct (default), or keep blocking it. |
 | `zode exit run <token>` | Runs the agent on this machine. Reads the token from `ZODE_EXIT_TOKEN` when you leave it out. |
-| `zode exit ls` | Lists exits: online or offline, the address sites see, when it was last seen, and its route URL. |
+| `zode exit install <token>` | Runs the agent as a background service that starts at login and restarts if it stops: launchd on macOS, a systemd user service on Linux. |
+| `zode exit uninstall` | Stops that service and removes it from this machine. The exit itself stays. |
+| `zode exit ls` | Lists exits: online or offline, the address sites see, when it was last seen, what happens when it is offline, and its route URL. |
 | `zode exit rm <name>` | Deletes an exit. Its agent disconnects and stops. |
 
 `zode exit run` flags:
@@ -19,31 +22,27 @@ How exits and routes work: [Outbound proxies and exits](/concepts/outbound).
 | Flag | Does |
 |---|---|
 | `--allow-private` | Lets sandboxes reach private and loopback addresses from this machine, such as your home network. Off by default. |
+| `--allow-sleep` | On macOS, lets the Mac idle-sleep. By default the agent keeps it awake while it runs, because a sleeping Mac takes the exit offline. |
+| `--token-file <path>` | Reads the token from a file. |
 | `-v` | Logs more, including each refused connection. |
 
 It prints a line when it connects, when it reconnects, and once a minute with the number of connections. It stops with an error only when the token is refused, because the exit was deleted or the token is wrong. Stop it with Ctrl+C.
 
 ### Run it as a service
 
-```ini /etc/systemd/system/zode-exit.service
-[Unit]
-Description=Zode exit
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Environment=ZODE_EXIT_TOKEN=zx_...
-ExecStart=/usr/local/bin/zode exit run
-Restart=on-failure
-DynamicUser=yes
-
-[Install]
-WantedBy=multi-user.target
+```bash
+zode exit install zx_...
 ```
+
+The token is saved in a file only you can read, not in the service file. On macOS the agent keeps the Mac from idle-sleeping, so it stays online with the screen locked; closing the lid on battery still sleeps the Mac. Its log is `~/Library/Logs/zode-exit.log`.
+
+On Linux, read the log with `journalctl --user -u zode-exit -f`. A user service stops when you log out unless lingering is on, which `install` tells you how to turn on:
 
 ```bash
-sudo systemctl enable --now zode-exit
+sudo loginctl enable-linger $USER
 ```
+
+Running `install` again replaces the token. `zode exit install` takes `--allow-private` like `run`.
 
 ## zode env egress
 
@@ -62,3 +61,11 @@ zode env egress <env> off
 | `off` | Removes every route. Sandboxes leave direct again. |
 
 Each write replaces all routes and rules. If a running sandbox does not confirm the change within five seconds, the command fails and names it; run it again once the sandbox is reachable.
+
+## zode ci env
+
+```bash
+zode ci env <environment|default>
+```
+
+Chooses the environment CI runners are created in, with its secrets, network and outbound routes. Use it to keep CI direct while the default environment goes through an exit.

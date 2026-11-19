@@ -24,7 +24,10 @@ Both are routes. You choose a default route for the environment, and you can sen
     ```bash
     zode exit run zx_...
     ```
-    It reconnects on its own if the network drops. To run it as a service, put the token in `ZODE_EXIT_TOKEN` and run `zode exit run`.
+    It reconnects on its own if the network drops, and on a Mac it keeps the Mac from idle-sleeping while it runs. To keep it running after you close the terminal and start it at login, install it as a service instead:
+    ```bash
+    zode exit install zx_...
+    ```
   </Step>
   <Step title="Route an environment through it">
     ```bash
@@ -49,6 +52,26 @@ Only owners and admins create and delete exits. Deleting one disconnects its age
 <Note>
 Traffic through an exit is limited by your machine's upload speed and adds a hop through Zode. Git hosts and package registries stay on the fast direct path unless a host rule names them.
 </Note>
+
+### When your machine is offline
+
+A machine that sleeps or loses its network takes the exit offline, so a machine that stays on works best. By default, if your exit has been offline for 3 minutes, its sandboxes go back to reaching the internet directly from Zode, and return to your machine within about a minute of it reconnecting. If traffic must never leave from a Zode address, make the exit block instead:
+
+```bash
+zode exit set home --when-offline block
+```
+
+In the console, the exit's row under **Outbound proxies** has a **When offline** choice.
+
+### CI runners
+
+CI runners are created in the default environment unless you choose another, so routing `default` through an exit also routes CI. To keep CI direct, give it its own environment:
+
+```bash
+zode ci env ci-direct
+```
+
+Or under **CI → Settings → Runner environment** in the console.
 
 ## Use your own proxy
 

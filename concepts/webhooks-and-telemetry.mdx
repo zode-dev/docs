@@ -21,7 +21,7 @@ The 201 response includes `"secret": "whsec_..."`. It is shown once. `POST /v1/w
 
 | Group | Types |
 |---|---|
-| Sandbox | `sandbox.create`, `sandbox.fork`, `sandbox.start`, `sandbox.stop`, `sandbox.delete`, `sandbox.oom`, `sandbox.failed` |
+| Sandbox | `sandbox.create`, `sandbox.fork`, `sandbox.start`, `sandbox.stop`, `sandbox.delete`, `sandbox.oom`, `sandbox.failed`, `sandbox.resized` |
 | Members and invites | `member.update`, `member.remove`, `member.leave`, `invite.create`, `invite.resend`, `invite.revoke`, `invite.accept` |
 | Workspace | `org.update`, `org.transfer` |
 | Spend | `breaker.tripped`, `spend.cap_reached`, `spend.daily_cap_reached`, `balance.low` |
@@ -29,6 +29,8 @@ The 201 response includes `"secret": "whsec_..."`. It is shown once. `POST /v1/w
 | CI | `ci.selection_miss` |
 
 `GET /v1/webhooks` lists every type with `available`.
+
+`sandbox.resized` fires on every size change of a sandbox, from [automatic sizing](/concepts/automatic-sizing) or a resize you asked for. Its `data` has `resource` (`cpu` or `memory`), `unit`, `from`, `to`, `reason`, `outcome` (`done`, `partial`, `failed` or `capped_by_node`), `ms`, and the `vcpus` and `ram_mb` the sandbox holds after the change.
 
 `balance.low` fires once when free credit drops below the workspace's low-balance threshold ($2 by default), and again each time sandboxes are stopped because credit ran out. Its `data` is `{reason, balance_micros, threshold_micros, exhausted, sandboxes_stopped?}`; see [Low-balance events](/concepts/spend-and-caps#low-balance-events).
 

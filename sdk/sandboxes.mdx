@@ -14,7 +14,7 @@ import { Sandbox } from "@zodedev/sdk";
 
 const sbx = await Sandbox.create({
   name: "fix-login",
-  vcpus: 4,
+  size: "medium",
   gitRepo: "acme/web",
   gitBranch: "fix-login",
   prNumber: 412,
@@ -27,7 +27,9 @@ console.log(sbx.id, sbx.status); // sbx_... running
 | Option | Type | Default | Notes |
 |---|---|---|---|
 | `name` | `string` | a generated name such as `brave-hopper` | Lowercase letters, digits and `-`, 1 to 63 characters, not starting or ending with `-` |
-| `vcpus` | `number` | `2` (`small`) | `2`, `4`, `8` or `16`. Picks the size; see below |
+| `size` | `string` | `small` | `small`, `medium`, `large`, `xlarge` or `auto`; see below |
+| `minSize`, `maxSize` | `string` | `small`, `large` | With `size: "auto"`: the floor and ceiling. See [Automatic sizing](#automatic-sizing) |
+| `vcpus` | `number` | `2` (`small`) | `2`, `4`, `8` or `16`. Also picks the size |
 | `image` | `string` | none | A ready custom image, by `img_` id or name. It sets the size and region; see [Custom images](#custom-images) |
 | `region` | `string` | `eu-central` | The only region today: Google Cloud europe-west1, Belgium. US East is coming soon |
 | `gitRepo` | `string` | `""` | Up to 512 characters |
@@ -42,16 +44,27 @@ console.log(sbx.id, sbx.status); // sbx_... running
 
 ### Sizes
 
-The host accepts four sizes. You pick one with `vcpus`; RAM and disk follow. Leave `vcpus` out and you get `small`. The size named `default` is 4 vCPU, and you get it only by passing `vcpus: 4`.
+Pick a size with `size`, or with `vcpus`; RAM and disk follow. Leave both out and you get `small`. The old name `default` still works and means `medium`.
 
 | Size | `vcpus` | RAM | Disk | Price per hour |
 |---|---|---|---|---|
 | `small` (when you pass nothing) | 2 | 4 GB | 50 GB | $0.0175 |
-| `default` | 4 | 8 GB | 50 GB | $0.035 |
+| `medium` | 4 | 8 GB | 50 GB | $0.035 |
 | `large` | 8 | 16 GB | 110 GB | $0.070 |
 | `xlarge` | 16 | 32 GB | 250 GB | $0.140 |
 
 The options type also has `ramMb` and `diskGb`. Leave them out. If you pass them, they must equal the chosen size's values (for example `ramMb: 8192` with `vcpus: 4`); any other value is refused with `invalid_request` and a message that lists the available sizes.
+
+### Automatic sizing
+
+Pass `size: "auto"` and the sandbox starts at `minSize`, then grows and shrinks up to `maxSize` while it runs, in steps of 1 vCPU and whole GiB. Leave the range out and you get `small` to `large`. On Free, `maxSize` can be at most `medium`; a missing `maxSize` means `medium`, and more is refused with `plan_required` (402).
+
+```ts
+const sbx = await Sandbox.create({ size: "auto", minSize: "small", maxSize: "large" });
+console.log(sbx.record.vcpus, sbx.record.ram_mb, sbx.record.auto);
+```
+
+`sbx.record.vcpus` and `sbx.record.ram_mb` are what the sandbox holds now; `refresh()` to read them again. `sbx.record.auto` is the range (`min_size`, `max_size`, `min_vcpus`, `max_vcpus`, `min_ram_mb`, `max_ram_mb`), or `null` for a fixed size. See [Automatic sizing](/concepts/automatic-sizing) for when it grows and shrinks, and how it is billed.
 
 ### Custom images
 
@@ -113,6 +126,30 @@ await sbx.start(); // status "running"
 
 `await sbx.delete()` deletes the sandbox, its disk and its snapshots. It cannot be undone.
 
+## Resize
+
+`sbx.resize(size, options)` changes the size of a running sandbox, live. A named size turns automatic sizing off; `"auto"` turns it on.
+
+```ts
+await sbx.resize("large");
+await sbx.resize("auto", { minSize: "small", maxSize: "xlarge" });
+```
+
+A grow throws `ZodeError` (409) when the host has no room, and a shrink throws (409) when the sandbox uses more memory than the new size leaves room for. The sandbox keeps its size in both cases.
+
+## Scaling history
+
+`sbx.scaling(options)` returns the sandbox's size changes, newest first, as in `GET /v1/sandboxes/{id}/scaling`.
+
+```ts
+const { events, started, next } = await sbx.scaling({ limit: 50 });
+for (const e of events) console.log(e.at, e.resource, e.from, e.to, e.outcome);
+console.log(started); // { at, vcpus: 2, ram_mb: 9216 }
+const older = next ? await sbx.scaling({ cursor: next }) : null;
+```
+
+Each event has `at`, `resource` (`cpu` or `memory`), `unit`, `from`, `to`, `delta`, `reason`, `outcome` (`done`, `partial`, `failed` or `capped_by_node`) and `ms`.
+
 ## Wait until running
 
 `create`, `start` and `fork` already resolve once the sandbox is running. Use `waitUntilRunning` for a sandbox you loaded while it was `creating` or `starting`:
@@ -138,4 +175,4 @@ const attempt = await sbx.fork({ name: "fix-login-try-2", gitBranch: "fix-login-
 | `gitBranch`, `prNumber`, `maxCostMicros` | the parent's |
 | `browser`, `desktop` | the parent's |
 
-The fork always keeps the parent's size, region, repository and environment. The parent must be running or stopped. A fork lands on the parent's host, so it can fail with `node_full`; it also counts against the plan's running limit and the create rate. See [Snapshots and fork](/concepts/snapshots-and-fork).
+The fork always keeps the parent's size, region, repository and environment. A fork of an automatic sandbox starts at the size its parent holds. The parent must be running or stopped. A fork lands on the parent's host, so it can fail with `node_full`; it also counts against the plan's running limit and the create rate. See [Snapshots and fork](/concepts/snapshots-and-fork).

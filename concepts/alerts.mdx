@@ -87,6 +87,7 @@ curl -s https://api.zode.dev/v1/alerts/rules \
 | `sandbox.abuse_stopped` | yes | Zode stopped a sandbox for suspected abuse |
 | `sandbox.failed` | no | a sandbox's VM exited unexpectedly |
 | `sandbox.abuse_flagged` | no | Zode flagged a sandbox for suspected abuse |
+| `sandbox.resized` | no | a sandbox changed size, by [automatic sizing](/concepts/automatic-sizing) or a resize |
 | `balance.low` | no | free credit dropped below the low-balance threshold, or ran out and sandboxes were stopped |
 | `member.joined`, `member.left`, `member.removed`, `member.role_changed` | no | membership changes |
 | `api_key.created` | no | someone created an API key |

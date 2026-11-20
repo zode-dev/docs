@@ -20,7 +20,7 @@ A `<sandbox>` is a sandbox's name or `sbx_` id. Where `--env ENV` appears, ENV i
 | Command | Flags | Notes |
 |---|---|---|
 | `zode ls` | | [Sandboxes](/cli/sandboxes#list) |
-| `zode new [name]` | `--size S`, `--image IMG`, `--browser[=false]`, `--desktop[=false]`, `--environment ENV`, `--repo URL`, `--branch B`, `--pr N`, `--max-cost USD` | Default size `small`. `--image` and `--size` exclude each other. [Make](/cli/sandboxes#make) |
+| `zode new [name]` | `--size S` (or `auto`), `--min S`, `--max S`, `--image IMG`, `--browser[=false]`, `--desktop[=false]`, `--environment ENV`, `--repo URL`, `--branch B`, `--pr N`, `--max-cost USD` | Default size `small`. `--min` and `--max` only with `--size auto` (default `small` and `large`). `--image` and `--size` exclude each other. [Make](/cli/sandboxes#make) |
 | `zode ssh <sandbox> [-- cmd ...]` | `-e KEY[=VALUE]`, `--env-file FILE` (before the sandbox) | [Open a shell](/cli/sandboxes#open-a-shell) |
 | `zode exec <sandbox> -- cmd ...` | `-t`/`--tty`, `-e`/`--env KEY[=VALUE]`, `--env-file FILE` (before the sandbox) | Exits with the command's code. [Run a command](/cli/sandboxes#run-a-command) |
 | `zode prompt <sandbox> "task"`, `zode prompt --new "task"` | `--agent A`, `--model M`, `--cd DIR`, `-e KEY[=VALUE]`, `--new`, `--size S` (default `default`), `--max-cost USD` | [Give an agent a task](/cli/sandboxes#give-an-agent-a-task) |
@@ -28,6 +28,8 @@ A `<sandbox>` is a sandbox's name or `sbx_` id. Where `--env ENV` appears, ENV i
 | `zode stop <sandbox>` | | Hibernate. |
 | `zode start <sandbox>` | | Wake. |
 | `zode rm <sandbox>` | | Delete, with its disk. |
+| `zode sandbox resize <sandbox> <size\|auto>` | `--min S`, `--max S` (with `auto`) | Live. A named size turns automatic sizing off. [Resize](/cli/sandboxes#resize) |
+| `zode sandbox scaling <sandbox>` | | Size changes, newest first. [Scaling history](/cli/sandboxes#scaling-history) |
 
 ## Snapshots
 

@@ -40,7 +40,7 @@ curl -sS -X POST https://api.zode.dev/v1/sandboxes/$ID/fork \
 
 What the child keeps and what you can change:
 
-- **Always the parent's**: size, region, host, git repo and [environment](/concepts/environments-and-secrets).
+- **Always the parent's**: size, region, host, git repo and [environment](/concepts/environments-and-secrets). For a parent with [automatic sizing](/concepts/automatic-sizing), the child starts at the size the parent holds at that moment and can then shrink. A snapshot likewise keeps the size held when it was taken.
 - **The parent's unless you pass a new one**: `git_branch`, `pr_number`, `max_cost_micros`, and whether the browser and desktop are on. On the CLI, `--browser=false` or `--desktop` makes the child differ.
 - **New in the child**: its name (a generated one if you leave it out), hostname and network address. The child's random number generator is reseeded and its clock is set, so it does not repeat the parent's random values.
 

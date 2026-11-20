@@ -26,6 +26,8 @@ GROUPS = [
         ("POST", "/v1/sandboxes/{id}/fork", "Fork a sandbox"),
         ("POST", "/v1/sandboxes/{id}/stop", "Stop a sandbox"),
         ("POST", "/v1/sandboxes/{id}/start", "Start a sandbox"),
+        ("PATCH", "/v1/sandboxes/{id}/size", "Change the size"),
+        ("GET", "/v1/sandboxes/{id}/scaling", "Read the scaling history"),
         ("GET", "/v1/concurrency", "Running sandboxes"),
     ]),
     ("Port previews", [

@@ -20,16 +20,16 @@ Zode gives your coding agents Linux VMs to work in. Each sandbox is a microVM (C
 
 ## Sizes
 
-Every sandbox has one of four fixed sizes. Compute is billed per second while the sandbox runs.
+Pick one of four sizes, or `auto` to let the sandbox grow and shrink with the work ([Automatic sizing](/concepts/automatic-sizing)). Compute is billed per second while the sandbox runs.
 
 | Size | vCPU | RAM | Disk | Price/hour |
 |---|---|---|---|---|
 | `small` | 2 | 4 GB | 50 GB | $0.0175 |
-| `default` | 4 | 8 GB | 50 GB | $0.035 |
+| `medium` | 4 | 8 GB | 50 GB | $0.035 |
 | `large` | 8 | 16 GB | 110 GB | $0.070 |
 | `xlarge` | 16 | 32 GB | 250 GB | $0.140 |
 
-A sandbox made without a size is `small`, from the CLI, the SDK, the API or MCP. The size named `default` is not the default. Storage is billed separately and is free for each sandbox's first 48 hours; see [Pricing](/pricing).
+A sandbox made without a size is `small`, from the CLI, the SDK, the API or MCP. The old name `default` still works and means `medium`. Storage is billed separately and is free for each sandbox's first 48 hours; see [Pricing](/pricing).
 
 Sandboxes run in `eu-central`, on Google Cloud in europe-west1 (Belgium). It is the only region today. US East is coming soon.
 

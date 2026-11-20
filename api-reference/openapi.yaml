@@ -926,6 +926,115 @@ paths:
           $ref: '#/components/responses/Error'
     parameters:
     - $ref: '#/components/parameters/SandboxID'
+  /v1/sandboxes/{id}/size:
+    patch:
+      operationId: resizeSandbox
+      tags:
+      - Sandboxes
+      summary: Change the size
+      description: 'Turn automatic sizing on or off, or resize a running sandbox live.
+
+
+        `{"size": "auto"}` turns automatic sizing on, with optional `min_size`
+
+        (default `small`) and `max_size` (default `large`). A named size such
+
+        as `{"size": "large"}` turns it off and resizes the running sandbox to
+
+        that size, with no restart. A grow needs room on the host (409 when there
+
+        is none, and the sandbox keeps its size). A shrink never goes below the
+
+        memory in use plus headroom (409 with a message saying so). On Free,
+
+        `max_size` above `medium` is 403 `plan_limit`. Answers with the sandbox.
+
+        The change is in the audit log and in the scaling history with reason
+
+        "manual". See https://docs.zode.dev/concepts/automatic-sizing.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResizeSandboxRequest'
+      responses:
+        '200':
+          description: The sandbox, with its new size or range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sandbox'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          description: '`plan_limit`: the plan does not allow this `max_size`, or the API key may not
+            change sandboxes.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          description: The sandbox is not running, the host has no room for the grow, or the shrink
+            would go below the memory in use plus headroom.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    parameters:
+    - $ref: '#/components/parameters/SandboxID'
+  /v1/sandboxes/{id}/scaling:
+    get:
+      operationId: getSandboxScaling
+      tags:
+      - Sandboxes
+      summary: Read the scaling history
+      description: 'Every size change of a sandbox, newest first.
+
+
+        Each event is one change of CPU or memory, by automatic sizing or by
+
+        PATCH /v1/sandboxes/{id}/size (reason "manual"). `outcome` is `done`,
+
+        `partial` (cut short), `failed`, or `capped_by_node` (the host had no
+
+        room, so the sandbox kept its size). `started` is the size the sandbox
+
+        was made at. Pass `next` back as `cursor` for the next page; it is empty
+
+        on the last one. Anyone who can read the sandbox can read its history.'
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          default: 50
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The scaling history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxScaling'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+    parameters:
+    - $ref: '#/components/parameters/SandboxID'
   /v1/sandboxes/{id}/timeline:
     get:
       operationId: getSandboxTimeline
@@ -8013,7 +8122,14 @@ components:
         size:
           type: string
           example: medium
-          description: The size's name (GET /v1/sizes); `<vcpus>x<ram GB>` for a shape outside the catalogue.
+          description: The size's name (GET /v1/sizes); `<vcpus>x<ram GB>` for a shape outside the catalogue;
+            `auto` when automatic sizing is on. `vcpus` and `ram_mb` are always what the sandbox holds
+            right now.
+        auto:
+          description: The automatic sizing range, or null for a fixed size. See https://docs.zode.dev/concepts/automatic-sizing.
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/AutoSize'
         region:
           type: string
           example: eu-central
@@ -8075,6 +8191,155 @@ components:
               email:
                 type: string
                 description: Kept after the member leaves the workspace.
+    AutoSize:
+      type: object
+      description: An automatic sizing range. The sandbox stays between the min and max values.
+      required:
+      - min_size
+      - max_size
+      - min_vcpus
+      - max_vcpus
+      - min_ram_mb
+      - max_ram_mb
+      properties:
+        min_size:
+          type: string
+          example: small
+        max_size:
+          type: string
+          example: large
+        min_vcpus:
+          type: integer
+          example: 2
+        max_vcpus:
+          type: integer
+          example: 8
+        min_ram_mb:
+          type: integer
+          example: 4096
+        max_ram_mb:
+          type: integer
+          example: 16384
+    ResizeSandboxRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - size
+      properties:
+        size:
+          type: string
+          enum:
+          - auto
+          - small
+          - medium
+          - large
+          - xlarge
+          description: '`auto` turns automatic sizing on. A named size turns it off and resizes the
+            running sandbox to that size.'
+        min_size:
+          type: string
+          enum:
+          - small
+          - medium
+          - large
+          - xlarge
+          default: small
+          description: With `auto`, the floor.
+        max_size:
+          type: string
+          enum:
+          - small
+          - medium
+          - large
+          - xlarge
+          default: large
+          description: With `auto`, the ceiling. At most `medium` on Free.
+    SandboxScaling:
+      type: object
+      required:
+      - events
+      - started
+      - next
+      properties:
+        events:
+          type: array
+          description: Newest first.
+          items:
+            $ref: '#/components/schemas/ScalingEvent'
+        started:
+          type: object
+          description: The size the sandbox was made at.
+          required:
+          - at
+          - vcpus
+          - ram_mb
+          properties:
+            at:
+              type: string
+              format: date-time
+            vcpus:
+              type: integer
+              example: 2
+            ram_mb:
+              type: integer
+              example: 9216
+        next:
+          type: string
+          description: Pass as `cursor` for the next page; empty on the last page.
+    ScalingEvent:
+      type: object
+      required:
+      - at
+      - resource
+      - unit
+      - from
+      - to
+      - delta
+      - reason
+      - outcome
+      - ms
+      properties:
+        at:
+          type: string
+          format: date-time
+        resource:
+          type: string
+          enum:
+          - cpu
+          - memory
+        unit:
+          type: string
+          enum:
+          - vcpus
+          - ram_mb
+        from:
+          type: integer
+          example: 13312
+        to:
+          type: integer
+          example: 5120
+        delta:
+          type: integer
+          example: -8192
+          description: '`to` minus `from`, in `unit`.'
+        reason:
+          type: string
+          example: memory unused
+          description: Plain text, such as "CPU pressure", "low memory", "memory unused", "CPUs idle" or
+            "manual".
+        outcome:
+          type: string
+          enum:
+          - done
+          - partial
+          - failed
+          - capped_by_node
+          description: '`partial`: the change was cut short. `capped_by_node`: the host had no room,
+            so the sandbox kept its size.'
+        ms:
+          type: integer
+          example: 25000
+          description: How long the change took, in milliseconds.
     CreateSandboxRequest:
       type: object
       additionalProperties: false
@@ -8197,13 +8462,38 @@ components:
           - medium
           - large
           - xlarge
+          - auto
           description: 'The size (GET /v1/sizes). Unknown names give 400 `invalid_request`
 
             listing the sizes; a size the plan does not include gives 402
 
             `plan_required`. `default` and the old golden names are accepted.
 
+            `auto` turns on automatic sizing: the sandbox starts at `min_size`
+
+            and grows and shrinks between `min_size` and `max_size` in steps of
+
+            1 vCPU and whole GiB.
+
             '
+        min_size:
+          type: string
+          enum:
+          - small
+          - medium
+          - large
+          - xlarge
+          default: small
+          description: With `size` `auto`, the floor. The sandbox starts here.
+        max_size:
+          type: string
+          enum:
+          - small
+          - medium
+          - large
+          - xlarge
+          default: large
+          description: With `size` `auto`, the ceiling. At most `medium` on Free; more is 403 `plan_limit`.
         browser:
           type: boolean
           description: Switch the browser on; omitted means the workspace default.

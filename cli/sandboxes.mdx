@@ -12,7 +12,7 @@ zode ls
 ```text
 NAME        STATUS    SIZE      REGION       CREATED   ID
 demo        running   small     eu-central   2h ago    sbx_q3vfn7tkx2mhcw4a
-demo-fork   stopped   default   eu-central   3d ago    sbx_r7k2wbn6tdyx3lpe
+demo-fork   stopped   medium    eu-central   3d ago    sbx_r7k2wbn6tdyx3lpe
 ```
 
 With no sandboxes it prints `No sandboxes yet. Make one with: zode new`.
@@ -27,7 +27,8 @@ Leave out the name and the API picks one. Names use lowercase letters, digits an
 
 | Flag | Effect |
 |---|---|
-| `--size S` | `small`, `default`, `large` or `xlarge`. Without it you get **small**; the size named `default` is not the default. |
+| `--size S` | `small`, `medium`, `large`, `xlarge` or `auto`. Without it you get **small**. `default` still works and means `medium`. |
+| `--min S`, `--max S` | With `--size auto`: the floor and ceiling. Default `small` and `large`. See [Automatic sizing](/concepts/automatic-sizing). |
 | `--image IMG` | Start from a [custom image](/cli/images), by name or `img_` id. The image sets the size, so you cannot combine it with `--size`. |
 | `--browser` | Run Chrome in the sandbox from the start. See [Browser and desktop](/cli/browser-desktop). |
 | `--desktop` | Run a Linux desktop from the start. Not on the Free plan. |
@@ -42,7 +43,7 @@ Leave out the name and the API picks one. Names use lowercase letters, digits an
 | Size | vCPU | RAM | Disk |
 |---|---|---|---|
 | small | 2 | 4 GB | 50 GB |
-| default | 4 | 8 GB | 50 GB |
+| medium | 4 | 8 GB | 50 GB |
 | large | 8 | 16 GB | 110 GB |
 | xlarge | 16 | 32 GB | 250 GB |
 
@@ -56,9 +57,49 @@ demo is running (large, 8 vCPU, 16 GB, eu-central) in 12.4s
   zode browser demo
 ```
 
+With `--size auto` the sandbox starts at `--min` and grows and shrinks up to `--max` while it runs:
+
+```bash
+zode new build --size auto --min small --max large
+```
+
+On the Free plan `--max` can be at most `medium`.
+
 On the Free plan you can run 2 sandboxes at once. A third `zode new` fails with `Your free plan runs at most 2 sandboxes at once. Stop one first.`
 
 A workspace with no card on file and no credit left cannot make, fork or start sandboxes until someone adds a card or credit in **Billing**. See [Pricing](/pricing#when-credit-runs-out).
+
+## Resize
+
+```bash
+zode sandbox resize <sandbox> <size|auto> [--min S] [--max S]
+```
+
+A named size resizes the running sandbox to that size, live, and turns automatic sizing off. `auto` turns it on, with `--min` and `--max` as on `zode new`.
+
+```bash
+zode sandbox resize build large
+zode sandbox resize build auto --min small --max xlarge
+```
+
+A grow fails when the host has no room, and a shrink fails when the sandbox uses more memory than the new size leaves room for. In both cases the sandbox keeps its size.
+
+## Scaling history
+
+```bash
+zode sandbox scaling <sandbox>
+```
+
+```text
+TIME        CHANGE                 DELTA
+14:32:05    Memory 13 -> 5 GiB     -8 GiB
+14:31:02    CPU 3 -> 2 vCPU        -1 vCPU
+14:20:41    CPU 2 -> 3 vCPU        +1 vCPU
+14:20:39    Memory 9 -> 13 GiB     +4 GiB
+Started at 2 vCPU · 9 GiB
+```
+
+Every size change, newest first, ending with the size the sandbox was made at. A change the host refused or cut short says so. See [Automatic sizing](/concepts/automatic-sizing#scaling-history).
 
 ## Open a shell
 

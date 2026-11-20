@@ -1,0 +1,168 @@
+---
+title: "Automatic sizing"
+description: "Let a sandbox grow its CPUs and memory when the work needs them and give them back when it is calm, billed per second at the size it holds."
+---
+
+A sandbox with automatic sizing starts small and changes size while it runs. It adds CPUs and memory when the work inside needs them, and gives them back once the work goes quiet. Commands keep running through every change: there is no restart.
+
+You set a floor and a ceiling. The sandbox starts at the floor, moves in steps of 1 vCPU and whole GiB of memory, and never leaves that range. It can hold sizes between the named ones, such as 3 vCPU or 13 GiB.
+
+You pay per second for the size the sandbox holds at each moment. See [Billing](#billing).
+
+## Turn it on
+
+Pass `auto` as the size. `min_size` is the floor and `max_size` is the ceiling, both picked from the [sizes](/concepts/sandboxes#sizes). Leave them out and you get `small` to `large`.
+
+<CodeGroup>
+
+```bash CLI
+zode new build --size auto --min small --max large
+```
+
+```ts TypeScript
+const sbx = await Sandbox.create({
+  name: "build",
+  size: "auto",
+  minSize: "small",
+  maxSize: "large",
+});
+```
+
+```bash curl
+curl -sS -X POST https://api.zode.dev/v1/sandboxes \
+  -H "Authorization: Bearer $ZODE_API_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"build","size":"auto","min_size":"small","max_size":"large"}'
+```
+
+</CodeGroup>
+
+In the console, choose **Auto** as the size when you make a sandbox, then pick the min and max.
+
+You can also turn it on or off for a sandbox that is already running:
+
+<CodeGroup>
+
+```bash CLI
+zode sandbox resize build auto --min small --max xlarge   # on, with a new range
+zode sandbox resize build large                           # off: fixed at large
+```
+
+```ts TypeScript
+await sbx.resize("auto", { minSize: "small", maxSize: "xlarge" });
+await sbx.resize("large");
+```
+
+```bash curl
+curl -sS -X PATCH https://api.zode.dev/v1/sandboxes/sbx_.../size \
+  -H "Authorization: Bearer $ZODE_API_KEY" -H "Content-Type: application/json" \
+  -d '{"size":"auto","min_size":"small","max_size":"xlarge"}'
+```
+
+</CodeGroup>
+
+On the sandbox page in the console, a fixed sandbox shows its size and a **Turn on automatic sizing** button.
+
+A named size turns automatic sizing off and resizes the running sandbox to that size, live. A grow needs room on the host; when there is none you get 409 and the sandbox keeps its size. A shrink never goes below what the sandbox is using plus headroom; when the named size is smaller than that, you get 409 with a message saying so.
+
+## Range and plan limits
+
+| | Default | Allowed |
+|---|---|---|
+| Floor (`min_size`) | `small`, 2 vCPU and 4 GiB | any size |
+| Ceiling (`max_size`) | `large`, 8 vCPU and 16 GiB | any size at or above the floor; up to `medium` on Free |
+
+On the Free plan the ceiling can be at most `medium` (4 vCPU, 8 GiB). Asking for more returns 403 `plan_limit`. Pro, Team and Enterprise can go up to `xlarge` (16 vCPU, 32 GiB).
+
+## When it grows
+
+Zode reads pressure signals from inside the sandbox every second.
+
+- **Memory.** When available memory runs low, or processes stall waiting for memory, the sandbox gets more memory within a couple of seconds. It grows in whole GiB, as much as the work needs, up to the ceiling.
+- **CPU.** When processes stall waiting for a CPU for 3 seconds in a row, the sandbox gets more vCPUs.
+
+Growing does not interrupt anything that is running.
+
+## When it shrinks
+
+A sandbox shrinks only after 5 calm minutes. Then it gives back one step at a time, at most one step a minute, and checks again before each step. If the work picks up, the shrink stops.
+
+It never shrinks below the floor, and never below the memory the sandbox is using plus headroom. Zode does not shrink a sandbox on a guess, so a shrink should never kill a process for lack of memory. If one does, that is a bug: tell us at hello@zode.dev.
+
+CPUs leave in well under a second. Memory leaves more slowly, at roughly 180 MB a second, so a large shrink takes tens of seconds. Giving back 8 GiB takes about 45 seconds. You keep paying for memory until it has actually left; see [Billing](#billing).
+
+## When the host is full
+
+Every grow needs free room on the host, the same as a new sandbox. When the host has none, the sandbox stays at its current size and keeps running. The scaling history records the refused grow, and Zode tries again later. A sandbox is not moved to another host to grow.
+
+## Scaling history
+
+Every change is recorded: when it happened, CPU or memory, from and to, and why.
+
+In the console, the sandbox page has an **Automatic sizing** panel and a **Scaling history** list.
+
+- The panel shows **Idle** or **Scaling**, then one row each for CPU, memory and disk: what the sandbox uses against what it holds, its floor and ceiling, and the percentage used. Disk reads **Fixed capacity**.
+- The history lists changes newest first, such as "Memory 13 → 5 GiB" with "−8 GiB", and ends with the size the sandbox started at.
+- A change the host refused, one that was cut short, and one that failed say so in words.
+
+From the CLI:
+
+```bash
+zode sandbox scaling build
+```
+
+```text
+TIME        CHANGE                 DELTA
+14:32:05    Memory 13 -> 5 GiB     -8 GiB
+14:31:02    CPU 3 -> 2 vCPU        -1 vCPU
+14:20:41    CPU 2 -> 3 vCPU        +1 vCPU
+14:20:39    Memory 9 -> 13 GiB     +4 GiB
+Started at 2 vCPU · 9 GiB
+```
+
+From the API, `GET /v1/sandboxes/{id}/scaling` returns the same changes, newest first, a page at a time. `limit` is 50 by default; pass `next` back as `cursor` for the next page.
+
+```json
+{
+  "events": [
+    {
+      "at": "2026-11-20T14:32:05Z",
+      "resource": "memory",
+      "unit": "ram_mb",
+      "from": 13312,
+      "to": 5120,
+      "delta": -8192,
+      "reason": "memory unused",
+      "outcome": "done",
+      "ms": 25000
+    }
+  ],
+  "started": { "at": "2026-11-20T14:02:11Z", "vcpus": 2, "ram_mb": 9216 },
+  "next": ""
+}
+```
+
+`outcome` is `done`, `partial` (the change was cut short), `failed`, or `capped_by_node` (the host had no room). `reason` is plain text, such as "CPU pressure", "low memory", "memory unused", "CPUs idle", or "manual" for a resize you asked for. `started` is the size the sandbox was made at. Anyone who can see the sandbox can read its history.
+
+Each change is also a `sandbox.resized` event. You can send it to a [webhook](/concepts/webhooks-and-telemetry#event-types) or an [alert](/concepts/alerts#event-types) channel.
+
+## Billing
+
+Compute is billed per second at the size the sandbox holds, at the normal [rate](/pricing#compute). Each change starts a new billed interval at the new size.
+
+Each vCPU includes 2 GiB of memory. When a sandbox holds more memory than that, it is billed by memory instead: every 2 GiB counts as one vCPU. A sandbox holding 2 vCPU and 9 GiB is billed as 4.5 vCPU.
+
+While memory is leaving during a shrink, you pay for what is still there, not for the target.
+
+Storage does not change: it is billed on the sandbox's disk, which is set when the sandbox is made. See [Pricing](/pricing#storage).
+
+## Snapshots and forks
+
+A snapshot keeps the size the sandbox held when it was taken. A fork starts at the size its parent held, and can then shrink like any automatic sandbox. See [Snapshots and fork](/concepts/snapshots-and-fork).
+
+## Limits
+
+- **Disk never shrinks.** It stays at the capacity the sandbox was made with.
+- **Memory is slow to give back.** Roughly 180 MB a second, as above.
+- **The image must be recent.** Automatic sizing needs a guest agent that reports pressure. Sandboxes started from images built before automatic sizing was released keep a fixed size until those images are rebuilt. Rebuild your [custom images](/concepts/images) to use it.
+- **One host.** A sandbox only grows on the host it runs on. When that host is full, it stays at its size.
+- **No sizes outside the range.** It never goes below the floor or above the ceiling, whatever the load.

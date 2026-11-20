@@ -86,6 +86,8 @@ const usage = await zode.request("GET", "/v1/usage");
   "vcpus": 2,
   "ram_mb": 4096,
   "disk_gb": 50,
+  "size": "small",
+  "auto": null,
   "region": "eu-central",
   "git_repo": "",
   "git_branch": "",
@@ -101,7 +103,7 @@ const usage = await zode.request("GET", "/v1/usage");
 }
 ```
 
-Right after a create or fork whose browser or desktop could not be switched on, the record also has `feature_error`. The record updates after every call that returns a sandbox: `refresh`, `stop`, `start`, `restore`, and switching the browser or desktop. Options you pass in are camelCase (`gitRepo`, `maxCostMicros`); results such as `exec`'s `exit_code` keep the API's names.
+Right after a create or fork whose browser or desktop could not be switched on, the record also has `feature_error`. `vcpus` and `ram_mb` are the size the sandbox holds now, which changes with [automatic sizing](/concepts/automatic-sizing). The record updates after every call that returns a sandbox: `refresh`, `stop`, `start`, `restore`, `resize`, and switching the browser or desktop. Options you pass in are camelCase (`gitRepo`, `maxCostMicros`); results such as `exec`'s `exit_code` keep the API's names.
 
 ## End-to-end example
 

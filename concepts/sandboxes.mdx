@@ -37,13 +37,13 @@ Anything else returns HTTP 409 with code `invalid_state`, for example "sandbox i
 | Size | vCPU | RAM | Disk | Compute/hour |
 |---|---|---|---|---|
 | `small` | 2 | 4 GB | 50 GB | $0.0175 |
-| `default` | 4 | 8 GB | 50 GB | $0.035 |
+| `medium` | 4 | 8 GB | 50 GB | $0.035 |
 | `large` | 8 | 16 GB | 110 GB | $0.070 |
 | `xlarge` | 16 | 32 GB | 250 GB | $0.140 |
 
-The host accepts only these four. A sandbox made without a size is `small`, in the API, the SDK, the CLI and the MCP server. The size named `default` is not the default: you get 4 vCPU only when you ask for `default`. On the CLI, pass `--size`. In the API and SDK, pass `vcpus` (2, 4, 8 or 16); RAM and disk follow. Any other combination returns 400 with the list of available sizes. A sandbox made from a [custom image](/concepts/images) has the image's size, and a fork has its parent's.
+A sandbox made without a size is `small`, in the API, the SDK, the CLI and the MCP server. The old name `default` still works and means `medium`. On the CLI, pass `--size`. In the API and SDK, pass `size`; `vcpus` (2, 4, 8 or 16) also still picks a size, and RAM and disk follow. Any other combination returns 400 with the list of available sizes. A sandbox made from a [custom image](/concepts/images) has the image's size, and a fork has its parent's.
 
-A sandbox's size does not change after it is made.
+A sandbox with a named size keeps it unless you change it. Pass `auto` instead and the sandbox grows and shrinks between a floor and a ceiling while it runs. You can also resize a running sandbox live. See [Automatic sizing](/concepts/automatic-sizing).
 
 ## Names and ids
 

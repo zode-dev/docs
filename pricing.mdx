@@ -12,11 +12,17 @@ Compute costs **$0.00875 per vCPU-hour**, billed per second while a sandbox is r
 | Size | vCPU | RAM | Disk | Per hour | Per 8-hour day |
 |---|---|---|---|---|---|
 | small | 2 | 4 GB | 50 GB | $0.0175 | $0.14 |
-| default | 4 | 8 GB | 50 GB | $0.035 | $0.28 |
+| medium | 4 | 8 GB | 50 GB | $0.035 | $0.28 |
 | large | 8 | 16 GB | 110 GB | $0.070 | $0.56 |
 | xlarge | 16 | 32 GB | 250 GB | $0.140 | $1.12 |
 
-A stopped sandbox costs nothing for compute. `zode new` without `--size`, the API and SDK without `vcpus`, and the MCP `sandbox_create` tool without `size` all make a **small** sandbox. The size named `default` (4 vCPU) is not the default; you only get it by asking for it.
+A stopped sandbox costs nothing for compute. `zode new` without `--size`, the API and SDK without `size`, and the MCP `sandbox_create` tool without `size` all make a **small** sandbox. The old name `default` still works and means `medium` (4 vCPU).
+
+### Billed at the size held
+
+Compute is billed for the size a sandbox holds at each second. A sandbox with [automatic sizing](/concepts/automatic-sizing), or one you resize, starts a new billed interval at every change. Sizes between the named ones are billed the same way: 3 vCPU costs $0.02625 an hour.
+
+Each vCPU includes 2 GB of RAM. A sandbox that holds more RAM than that is billed by RAM instead, each 2 GB counting as one vCPU. 2 vCPU with 9 GB is billed as 4.5 vCPU, $0.039375 an hour.
 
 ## Storage
 
@@ -27,7 +33,7 @@ A sandbox you delete within 48 hours of creating it pays no storage at all.
 | Size | Disk | Storage per month, after the first 48 hours |
 |---|---|---|
 | small | 50 GB | $5.00 |
-| default | 50 GB | $5.00 |
+| medium | 50 GB | $5.00 |
 | large | 110 GB | $11.00 |
 | xlarge | 250 GB | $25.00 |
 
@@ -48,6 +54,7 @@ AI calls from a sandbox go out on your own provider keys. They are not on your i
 | Sandboxes running at once | 2 | 15 | 50 | Per contract |
 | Browser (Chrome over CDP) | Yes | Yes | Yes | Yes |
 | Linux desktop | No | Yes | Yes | Yes |
+| [Automatic sizing](/concepts/automatic-sizing) ceiling | `medium` | `xlarge` | `xlarge` | `xlarge` |
 | Custom images kept / building at once | 3 / 1 | 20 / 2 | 100 / 4 | Unlimited |
 | Flight recorder retention | 7 days | 30 days | 90 days | 90 days |
 | Audit log CSV export | No | No | Yes | Yes |
@@ -74,7 +81,7 @@ Your Personal workspace starts with $10, so your first sandboxes need no card. A
 
 | Item | Billed while | Rate |
 |---|---|---|
-| Compute | The sandbox is running | $0.00875 per vCPU-hour |
+| Compute | The sandbox is running, at the size it holds | $0.00875 per vCPU-hour |
 | Storage | The sandbox exists, running or stopped, from 48 hours after create | $0.10 per GB-month of disk size |
 | AI provider spend | Never | Shown, not billed |
 

@@ -52,6 +52,7 @@
             "group": "Concepts",
             "pages": [
               "concepts/sandboxes",
+              "concepts/automatic-sizing",
               "concepts/snapshots-and-fork",
               "concepts/images",
               "concepts/official-images",
@@ -153,6 +154,8 @@
               "POST /v1/sandboxes/{id}/fork",
               "POST /v1/sandboxes/{id}/stop",
               "POST /v1/sandboxes/{id}/start",
+              "PATCH /v1/sandboxes/{id}/size",
+              "GET /v1/sandboxes/{id}/scaling",
               "GET /v1/concurrency"
             ]
           },

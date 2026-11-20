@@ -62,7 +62,7 @@ curl -sS -X PATCH https://api.zode.dev/v1/sandboxes/sbx_.../size \
 
 On the sandbox page in the console, a fixed sandbox shows its size and a **Turn on automatic sizing** button.
 
-A named size turns automatic sizing off and resizes the running sandbox to that size, live. A grow needs room on the host; when there is none you get 409 and the sandbox keeps its size. A shrink never goes below what the sandbox is using plus headroom; when the named size is smaller than that, you get 409 with a message saying so.
+A named size turns automatic sizing off and resizes the running sandbox to that size, live. A grow needs room on the host; when there is none you get 409 `node_full` and the sandbox keeps its size. A shrink never goes below what the sandbox is using plus headroom; when the named size is smaller than that, you get 409 `resize_refused` with the smallest size that is safe.
 
 ## Range and plan limits
 
@@ -71,7 +71,7 @@ A named size turns automatic sizing off and resizes the running sandbox to that 
 | Floor (`min_size`) | `small`, 2 vCPU and 4 GiB | any size |
 | Ceiling (`max_size`) | `large`, 8 vCPU and 16 GiB | any size at or above the floor; up to `medium` on Free |
 
-On the Free plan the ceiling can be at most `medium` (4 vCPU, 8 GiB). Asking for more returns 403 `plan_limit`. Pro, Team and Enterprise can go up to `xlarge` (16 vCPU, 32 GiB).
+On the Free plan the ceiling can be at most `medium` (4 vCPU, 8 GiB), and that is the default there. Asking for more returns 402 `plan_required`. Pro, Team and Enterprise can go up to `xlarge` (16 vCPU, 32 GiB).
 
 ## When it grows
 

@@ -57,7 +57,7 @@ The options type also has `ramMb` and `diskGb`. Leave them out. If you pass them
 
 ### Automatic sizing
 
-Pass `size: "auto"` and the sandbox starts at `minSize`, then grows and shrinks up to `maxSize` while it runs, in steps of 1 vCPU and whole GiB. Leave the range out and you get `small` to `large`. On Free, `maxSize` can be at most `medium`; more is refused with `plan_limit` (403).
+Pass `size: "auto"` and the sandbox starts at `minSize`, then grows and shrinks up to `maxSize` while it runs, in steps of 1 vCPU and whole GiB. Leave the range out and you get `small` to `large`. On Free, `maxSize` can be at most `medium`; a missing `maxSize` means `medium`, and more is refused with `plan_required` (402).
 
 ```ts
 const sbx = await Sandbox.create({ size: "auto", minSize: "small", maxSize: "large" });

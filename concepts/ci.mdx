@@ -32,6 +32,9 @@ The Zode GitHub App asks for these repository permissions: Administration (read 
 | `zode-4x8` | 4 | 8 GB | 50 GB |
 | `zode-8x16` | 8 | 16 GB | 110 GB |
 | `zode-16x32` | 16 | 32 GB | 250 GB |
+| `zode-auto` | 2 to 8 | 4 to 16 GB | 50 GB |
+
+`zode-auto` starts the runner at 2 vCPU and 4 GB and lets it grow while the job runs, up to 8 vCPU and 16 GB (4 vCPU and 8 GB on Free), then shrink back. You pay for the size it holds, second by second. Add an official image the same way as for the other sizes, for example `zode-auto-debian-13`. Spare runners for `zode-auto` wait at the smallest size. If no host in the region runs [automatic sizing](/concepts/automatic-sizing) yet, the job runs at 2 vCPU and 4 GB instead of waiting.
 
 `self-hosted`, `linux` and `x64` may appear next to a Zode label. Any other label, an unknown size, or two different Zode sizes in one `runs-on` gets the job refused with a reason. Jobs without a Zode label are ignored: not recorded, not billed.
 

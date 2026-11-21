@@ -1,0 +1,42 @@
+---
+title: "Antigravity"
+description: "Give Google Antigravity's agents Zode sandboxes: one command adds Zode's MCP server to the Antigravity IDE and CLI."
+---
+
+[Antigravity](https://antigravity.google) reads MCP servers from `~/.gemini/config/mcp_config.json`, for the IDE and the CLI alike, and from `.agents/mcp_config.json` inside a workspace. `zode setup` writes Zode into that file.
+
+```bash
+zode login
+zode setup antigravity            # every project
+zode setup antigravity --project  # only this folder (.agents/mcp_config.json)
+```
+
+The entry it adds:
+
+```json
+{
+  "mcpServers": {
+    "zode": {
+      "command": "/home/you/.local/bin/zode",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Restart Antigravity. In the IDE, **...** at the top of the agent panel, then **MCP Servers**, lists `zode`. Then ask the agent for work that needs a machine:
+
+```text
+Make a Zode sandbox, clone this repo into it, run the tests and fork it
+three times to try three fixes for the failing one.
+```
+
+## Check it
+
+**...** > **MCP Servers** > **Manage MCP Servers** > **View raw config** opens the file `zode setup` wrote. A server that fails to start shows its error there; the usual cause is no sign-in, which `zode login` fixes.
+
+## Remove it
+
+```bash
+zode setup antigravity --remove
+```

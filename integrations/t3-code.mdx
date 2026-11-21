@@ -21,6 +21,8 @@ Sign in to T3 Connect. Open on any device:
   https://accounts.t3.codes/device?user_code=ABCD-EFGH
 Code: ABCD-EFGH
 Waiting for approval.
+...
+T3 project: repo
 ```
 
 Open the link on your phone, check the code matches and approve. The sandbox now shows up as a machine in T3 Code on your phone, your desktop and [app.t3.codes](https://app.t3.codes).
@@ -29,9 +31,10 @@ Open the link on your phone, check the code matches and approve. The sandbox now
 
 1. Makes a sandbox named `t3`, or wakes it if you already have one by that name.
 2. Installs T3 Code with T3's own installer.
-3. Clones `--repo` into `~/work` (a partial clone, so big repositories arrive fast).
+3. Clones `--repo` into `~/work` (a partial clone, so big repositories arrive fast). Private GitHub repositories work once your workspace has GitHub linked (`zode github`).
 4. Installs T3 Code's background service and keeps it running across a stop and start.
 5. Runs `t3 up --connect --headless`, which prints the sign-in code.
+6. Adds the clone as a T3 project, so the apps can open it on this machine.
 
 Zode never sees your T3 account. You approve the code yourself.
 
@@ -39,7 +42,7 @@ Zode never sees your T3 account. You approve the code yourself.
 zode t3 [name] [--repo owner/repo | URL] [--size small|medium|large|xlarge]
 ```
 
-Run it again on the same sandbox to add another repository or to see the status. Nothing that is already there is installed twice.
+Run it again on the same sandbox to add another repository or to see the status. Nothing that is already there is installed twice, and a machine that is already signed in is not asked again.
 
 ## Sign the agents in
 
@@ -54,4 +57,4 @@ Or sign in from T3 Code's provider settings.
 
 ## Stopping
 
-`zode stop t3` pauses the sandbox with its memory kept. T3 Code cannot reach a stopped machine, so start it again (`zode start t3`) before you open T3. Waking it from T3 Code itself is planned.
+`zode stop t3` pauses the sandbox with its memory kept, and billing stops. T3 Code cannot reach a stopped machine, so start it again before you open T3: `zode start t3`, or from your phone open the sandbox's page in the console (`zode t3` prints the link) and press **Start**. Waking it from T3 Code itself is planned.

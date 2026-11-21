@@ -1,0 +1,23 @@
+---
+title: "Google AI Studio"
+description: "Take an app you built in Google AI Studio further: run it in a Zode sandbox with a real backend, a preview URL and the Gemini key in the vault."
+---
+
+Apps you build in [Google AI Studio](https://aistudio.google.com) can be exported to GitHub or downloaded as a zip. When you outgrow the preview, a Zode sandbox gives the app a real machine: a database, background jobs, an https preview URL and agents working on it.
+
+## Bring the app over
+
+Download or clone the exported app, then from its folder:
+
+```bash
+git init -q && git add -A && git commit -qm "AI Studio export"   # if it is not a repo yet
+zode up --name my-app
+zode ssh my-app -- 'cd /workspace/my-app && npm install && npm run dev -- --host 0.0.0.0'
+zode port my-app 3000
+```
+
+`zode up` carries the files and your `.env.local`. A `GEMINI_API_KEY` there goes into the vault, sent only to `generativelanguage.googleapis.com`: code in the sandbox sees a placeholder and Zode swaps the real key in on the way out.
+
+## Keep the key out of the page
+
+Many AI Studio apps call Gemini from the browser, with the key built into the page. In a sandbox that page gets the placeholder, and the call fails, which is what you want: a key in the page is readable by anyone who opens it. Move the Gemini call into a server route (for example an Express or Next.js API route that the page calls). The server runs in the sandbox, so the vault swaps the key in, and the browser never sees it.

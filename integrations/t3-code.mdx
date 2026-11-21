@@ -1,0 +1,57 @@
+---
+title: "T3 Code"
+description: "zode t3 turns a sandbox into the always-on machine for T3 Code, so Claude Code and Codex threads run on Zode and you follow them from your phone."
+---
+
+[T3 Code](https://t3.codes) runs Claude Code, Codex, Cursor and OpenCode on one machine and shows the same threads on your desktop, the web and your phone. That machine has to stay on. `zode t3` makes a sandbox that machine.
+
+```bash
+zode login
+zode t3 --repo owner/repo
+```
+
+```text
+Made t3 (medium, 4 vCPU, 8 GB) for T3 Code.
+Installing T3 Code with its installer (t3.codes/install.sh)...
+T3 Code t3 v0.1.11
+Cloning https://github.com/owner/repo.git...
+Project: /root/work/repo
+
+Sign in to T3 Connect. Open on any device:
+  https://accounts.t3.codes/device?user_code=ABCD-EFGH
+Code: ABCD-EFGH
+Waiting for approval.
+```
+
+Open the link on your phone, check the code matches and approve. The sandbox now shows up as a machine in T3 Code on your phone, your desktop and [app.t3.codes](https://app.t3.codes).
+
+## What it does
+
+1. Makes a sandbox named `t3`, or wakes it if you already have one by that name.
+2. Installs T3 Code with T3's own installer.
+3. Clones `--repo` into `~/work` (a partial clone, so big repositories arrive fast).
+4. Installs T3 Code's background service and keeps it running across a stop and start.
+5. Runs `t3 up --connect --headless`, which prints the sign-in code.
+
+Zode never sees your T3 account. You approve the code yourself.
+
+```bash
+zode t3 [name] [--repo owner/repo | URL] [--size small|medium|large|xlarge]
+```
+
+Run it again on the same sandbox to add another repository or to see the status. Nothing that is already there is installed twice.
+
+## Sign the agents in
+
+T3 Code starts Claude Code and Codex inside the sandbox, so they sign in there, once:
+
+```bash
+zode ssh t3 -- claude                      # or
+zode ssh t3 -- codex login --device-auth
+```
+
+Or sign in from T3 Code's provider settings.
+
+## Stopping
+
+`zode stop t3` pauses the sandbox with its memory kept. T3 Code cannot reach a stopped machine, so start it again (`zode start t3`) before you open T3. Waking it from T3 Code itself is planned.

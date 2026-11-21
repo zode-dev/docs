@@ -1,0 +1,50 @@
+---
+title: "Add Zode to your coding tool"
+description: "zode setup writes Zode's MCP server into Antigravity, Cursor, VS Code, Windsurf, Kiro, OpenCode, Claude Code or Codex, so its agent can make and use sandboxes."
+---
+
+Your agent gets Zode's tools (make a sandbox, run commands, read and write files, fork, snapshot, open a port) through [`zode mcp`](/cli/mcp). `zode setup` puts that server into your tool's own config for you.
+
+```bash
+zode setup              # which tools are on this computer and which have Zode
+zode setup antigravity  # add it to one
+```
+
+Sign in with [`zode login`](/cli/overview#sign-in) first. Then restart the tool and ask its agent to make a sandbox.
+
+## Tools
+
+| Tool | Command | What it changes |
+|---|---|---|
+| [Antigravity](/integrations/antigravity) | `zode setup antigravity` | `~/.gemini/config/mcp_config.json` (IDE and CLI) |
+| Cursor | `zode setup cursor` | `~/.cursor/mcp.json` |
+| VS Code | `zode setup vscode` | runs `code --add-mcp` for your user profile |
+| Windsurf | `zode setup windsurf` | `~/.codeium/windsurf/mcp_config.json` |
+| Kiro | `zode setup kiro` | `~/.kiro/settings/mcp.json` |
+| OpenCode | `zode setup opencode` | `~/.config/opencode/opencode.json` |
+| Claude Code | `zode setup claude` | runs `claude mcp add --scope user zode -- zode mcp` |
+| Codex | `zode setup codex` | runs `codex mcp add zode -- zode mcp` |
+| Zed | `zode setup zed` | prints the entry to paste into `context_servers` |
+| Cline | `zode setup cline` | prints the entry to paste into `cline_mcp_settings.json` |
+
+For phones and other computers through T3 Code, see [T3 Code](/integrations/t3-code). For apps you made in Google AI Studio, see [Google AI Studio](/integrations/google-ai-studio).
+
+## Options
+
+```bash
+zode setup <tool> [--project] [--print] [--remove] [--command CMD]
+```
+
+| Flag | Effect |
+|---|---|
+| `--project` | Write this folder's config instead of your user config: `.agents/mcp_config.json` (Antigravity), `.cursor/mcp.json`, `.vscode/mcp.json`, `.kiro/settings/mcp.json`, `opencode.json`, or Claude Code's project scope. |
+| `--print` | Show what would be written. Nothing changes. |
+| `--remove` | Take Zode out again. Every other server stays. |
+| `--command CMD` | The command the tool starts. Default: the full path of the `zode` you ran, so apps that do not read your shell's `PATH` still find it. |
+
+## What it does to your files
+
+- It adds one entry named `zode` and keeps everything else in the file.
+- Before the first change to a file it keeps a copy next to it as `<file>.zode-bak`.
+- Running it again changes nothing when Zode is already there.
+- A file with comments or anything that is not plain JSON is left alone: `zode setup` prints the entry for you to paste instead.

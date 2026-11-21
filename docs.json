@@ -69,6 +69,15 @@
             ]
           },
           {
+            "group": "Integrations",
+            "pages": [
+              "integrations/overview",
+              "integrations/antigravity",
+              "integrations/t3-code",
+              "integrations/google-ai-studio"
+            ]
+          },
+          {
             "group": "Private networking",
             "pages": [
               "networking/private-networking",
